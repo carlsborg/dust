@@ -1,0 +1,52 @@
+
+########################################################################
+# A sample EC2 dust cluster template.
+
+# usage:
+# enter a dust.py shell
+# $load sample.ec2.cnf
+# $show
+# .. shows the defined nodes
+# $start
+# .. start the instances
+# $show
+# .. shows the nodes started and in pending state
+
+# you can modify and reload this template and call start to
+# start only the newly defined nodes.
+
+# the @cloud section defines the cloud name, provider and node defaults 
+# the @nodename sections define EC2 node with tags name=nodename
+
+########################################################################
+
+@cloud
+provider=ec2
+name=democloud
+region=eu-west-1
+username=ubuntu
+key=test2
+keyfile=/home/booda/dev/dust/test2.pem
+
+@master
+instance_type=m3.medium
+image=ami-896c96fe
+
+@worker0
+instance_type=t2.small 
+image=ami-3eb46b49
+
+@worker1
+instance_type=t2.small 
+image=ami-3eb46b49
+
+@worker2
+instance_type=t2.small 
+image=ami-3eb46b49
+
+@worker3
+instance_type=t2.small
+image=ami-3eb46b49
+
+########################################################################
+
