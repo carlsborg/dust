@@ -3,11 +3,13 @@ dust
 
 Dust is an ssh cluster shell for EC2 clusters.
 
-(Currently, this is unstable/head work in progress, and bugs abound)
+Note:
+* Currently, this is unstable/head work in progress, and bugs abound
+* Tested/known to work on linux only
 
 ## Rationale
 
-While developing/prototyping/running tests on EC2, one often needs to bring up a set of nodes, poke around using ssh, stop some nodes, terminate others, and bring the whole cluster back up later on. 
+While developing/prototyping/running tests on EC2 clusters, one often needs to bring up a set of nodes, poke around using ssh, stop some nodes, terminate others, and bring the whole cluster back up later on. 
 
 Dust is a potentially useful swiss army knife for these kinds of system admin tasks and development activities. Suitable for for small clusters upto 10 nodes or so.
 
@@ -51,20 +53,29 @@ image=ami-3eb46b49
 
 ### Use filter expressions and wildcards for operations on node subsets
 
+The generalized usage of commands in dust is:
 
-\# target is nodes named worker*
+> $somecmd [target] args
+
+target is nodes named worker*
 > dust$ stop worker\*             
 
-\# target is nodes where state=stopped
+target is nodes named worker0, worker1, worker2
+> dust$ terminate worker[0-2]
+
+target is nodes where state=stopped
 > dust$ start state=stopped     
 
-\# target is nodes named worker0, worker1
-> dust$ terminate worker[0-1]
+> dust$ start state=stop*    # filters can have wildcards 
 
 
-### Send line-buffered shell commands over ssh to a set of nodes 
+### Send line-buffered shell commands over ssh to a set of nodes
 
-Use '@[target] cmd' to execute cmd on nodes defined by [target]
+Use
+
+> @[target] cmd' 
+
+to execute cmd over ssh on nodes defined by [target]
 
 e.g.
 
@@ -156,3 +167,6 @@ Out of the box commands: get (cluster download), put (cluster upload), setting u
 Type help or ? inside the dust shell for more
 
 Unrecognized commands drop to the system shell, so you can edit files, run configuration management tools locally from the same prompt.
+
+
+
