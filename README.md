@@ -13,8 +13,6 @@ While developing/prototyping/running tests on EC2 clusters, one often needs to b
 
 Dust is a potentially useful swiss army knife for these kinds of system admin tasks and development activities. Suitable for for small clusters upto 10 nodes or so.
 
-Possibly also helpful for getting to repeatable custom playbooks/recipes in third party configration tools.
-
 ## Usage
 Running dust.py drops to a shell that allows you to: 
 
@@ -57,13 +55,13 @@ The generalized usage of commands in dust is:
 
 > $somecmd [target] args
 
-target is nodes named worker*
+e.g. target is nodes named worker*
 > dust$ stop worker\*             
 
-target is nodes named worker0, worker1, worker2
+e.g. target is nodes named worker0, worker1, worker2
 > dust$ terminate worker[0-2]
 
-target is nodes where state=stopped
+e.g. target is nodes where state=stopped
 > dust$ start state=stopped     
 
 > dust$ start state=stop*    # filters can have wildcards 
@@ -150,12 +148,15 @@ Using filter expressions:
 
 the interactive command continues on all nodes where the response was sent.
 
-### Enter into fully  responses to interactive raw shell on a single node 
+### Enter a fully interactive raw shell on a single node 
 
 > dust$ @worker2
 
-This enters the a regular interactive shell session reusing the same ssh session as the one above, but in char buffered mode -- for running full screen console apps such as vim or top. When done, exit the shell completely ($exit) or keep it going in 
-the background (Ctrl-C x3) for future line buffered commands or raw shell mode.
+This enters the a regular interactive shell session on worker2 -- for running full screen console apps such as vim 
+or top. Reuseing the same ssh session as the one above, but in char buffered mode. 
+
+When done, exit the shell completely ($exit) or keep it going in the background (Ctrl-C x3) for future line 
+buffered commands or raw shell mode.
 
 
 ### Extensible drop in commands 
@@ -166,7 +167,6 @@ Out of the box commands: get (cluster download), put (cluster upload), setting u
 
 Type help or ? inside the dust shell for more
 
-Unrecognized commands drop to the system shell, so you can edit files, run configuration management tools locally from the same prompt.
-
-
+Unrecognized commands drop to the system shell, so you can edit files, run configuration management tools locally 
+from the same prompt.
 
