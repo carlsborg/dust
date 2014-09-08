@@ -86,9 +86,9 @@ e.g.
 [worker2] 
 ```
 
-Equivalent ways to address the same node set:
+Equivalent ways to address the same node set, using wildcards:
 
-> dust$ @worker[0-1]  ls /var/log
+> dust$ @worker[0-2]  ls /var/log
 
 > dust$ @w\*  ls /var/log
 
@@ -98,7 +98,7 @@ Using filter expressions:
 
 > dust$ @state=running  ls /var/log
 
-> dust$ @state=run\*  ls /var/log/auth.log
+> dust$ @state=run\*  ls -l /var/log/auth.log
 
 ```
 [worker0] -rw-r----- 1 syslog adm 398707 Sep  7 23:42 /var/log/auth.log
@@ -143,7 +143,7 @@ the interactive command continues on all nodes where the response was sent.
 
 > dust$ @worker2
 
-This enters the a regular interactive shell session reusing the same session as the one above, but in char buffered mode -- for running full screen console apps such as vim or top. When done, exit the shell completely ($exit) or keep it going in 
+This enters the a regular interactive shell session reusing the same ssh session as the one above, but in char buffered mode -- for running full screen console apps such as vim or top. When done, exit the shell completely ($exit) or keep it going in 
 the background (Ctrl-C x3) for future line buffered commands or raw shell mode.
 
 
