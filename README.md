@@ -4,14 +4,21 @@ dust
 Dust is an ssh cluster shell for EC2 clusters.
 
 Note:
-* Currently, this is unstable/head work in progress, and bugs abound
+* Currently, this is unstable/head work in progress
 * Tested/known to work on linux only
 
 ## Rationale
 
-While developing/prototyping/running tests on EC2 clusters, one often needs to bring up a set of nodes, poke around using ssh, stop some nodes, terminate others, and bring the whole cluster back up later on. 
+While developing/prototyping on EC2 clusters, one often needs to bring up a set of nodes, poke around using ssh, 
+stop some nodes, terminate others, and bring the whole cluster back up later on.
 
-Dust is a potentially useful swiss army knife for these kinds of system admin tasks and development activities. Suitable for for small clusters upto 10 nodes or so.
+Dust is a potentially useful swiss army knife for these kinds of system admin tasks and development activities. 
+Suitable for for small clusters upto 10 nodes or so.
+
+The underlying philosophy is that it should be simple to setup a basic cluster via config, and manage it from the command line. 
+Any cloud feature that would require complex command line configuration is better done via drop in python commands. For example, 
+to configure EC2 security groups in dust, you copy or edit the ec2sec custom command python source.
+
 
 ## Usage
 Running dust.py drops to a shell that allows you to: 
@@ -71,7 +78,7 @@ e.g. target is nodes where state=stopped
 
 Use
 
-> @[target] cmd' 
+> @[target] cmd
 
 to execute cmd over ssh on nodes defined by [target]
 
@@ -146,13 +153,13 @@ Using filter expressions:
 
 > dust$ @work\* Y
 
-the interactive command continues on all nodes where the response was sent.
+sends a Y to all the nodes named work\* and the apt-get script continues.
 
 ### Enter a fully interactive raw shell on a single node 
 
 > dust$ @worker2
 
-This enters the a regular interactive shell session on worker2 -- for running full screen console apps such as vim 
+This enters the a regular interactive ssh shell on worker2 -- for running full screen console apps such as vim 
 or top. Reuseing the same ssh session as the one above, but in char buffered mode. 
 
 When done, exit the shell completely ($exit) or keep it going in the background (Ctrl-C x3) for future line 
