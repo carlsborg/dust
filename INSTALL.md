@@ -1,15 +1,17 @@
 
 ###Install 
 
+
 Tested on: Debian 7, Python 2.7.3
 
-1. Install pip if you dont have it:
+#### 1. Install pip if you dont have it:
 
 > sudo apt-get install python-pip
 
 > sudo pip install -U pip
 
-2. Install dependencies:
+
+#### 2.  Install dependencies:
 
 > sudo apt-get install python-dev
 
@@ -18,6 +20,7 @@ Tested on: Debian 7, Python 2.7.3
 > sudo pip install paramiko
 
 ###Quick Start
+
 
 ####1. Get EC2 account credentials 
 
