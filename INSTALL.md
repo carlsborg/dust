@@ -53,7 +53,7 @@ aws_secret_access_key = YourSecretAccessKey
 
 > $git clone https://github.com/carlsborg/dust.git
 
-####4. Drop into a dust shell and issue some commands
+####4. Drop into a dust shell
 
 > $python dust.py 
 
