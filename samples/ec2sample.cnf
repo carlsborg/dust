@@ -25,8 +25,10 @@ provider=ec2
 name=democloud
 region=eu-west-1
 username=ubuntu
-key=test2
-keyfile=/home/booda/dev/dust/test2.pem
+
+#key=existing_keypairname
+#keyfile=/path/to/existing/key.pem
+#commented out, creates/uses default keypair
 
 @master
 instance_type=m3.medium

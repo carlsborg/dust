@@ -1,5 +1,5 @@
 ''' EC2 cloud and node objects '''
-import sys
+import os, sys
 import boto, boto.ec2
 
 from dustcluster.util import setup_logger
@@ -30,15 +30,12 @@ class EC2Cloud(object):
     describe and control EC2 clouds
     '''
 
-    def __init__(self, name, key, region="", image="", username="", keyfile=""):
+    def __init__(self, name, key='', region="", image="", username="", keyfile=""):
 
         if not region:
             region = 'eu-west-1'
 
         EC2Session.connect(region, verbose=False)
-
-        if not key:
-            raise Exception("Cannot create a cloud without a key")
 
         self.name   = name
         self.key    = key
@@ -184,6 +181,39 @@ class EC2Cloud(object):
     def get_template_nodes(self):
         return self.template_nodes
 
+    def load_default_keys(self, keypath):
+        ''' load the default keypair if it exists
+            else create a default keypair and save it to keypath '''
+
+        default_keypair = 'ec2dust'
+
+        # try keys/dust.key
+        default_keyfile = os.path.join(keypath, '%s.pem' % default_keypair)
+        if os.path.exists(default_keyfile):
+            logger.info('Found default key pair locally, key=%s keypath=%s' % (default_keypair,default_keyfile))
+            self.key = default_keypair
+            self.keyfile = default_keyfile
+            return
+
+        # check existing keys in the cloud 
+        keypairs = self.conn().get_all_key_pairs()
+        if default_keypair in keypairs:
+            logger.info('Found default key pair in cloud, downloading \
+                            key=%s keypath=%s' % (default_keypair,default_keyfile))
+            kp = keypairs[0]
+            ret = key.save(keypath)
+        else:
+            # create it
+            logger.info('Creating default key pair key=%s keypath=%s' % (default_keypair,default_keyfile))
+            key = self.conn().create_key_pair(default_keypair)
+            if key:
+                key.save(keypath)
+            else:
+                raise Exception('Error creating key')
+
+        self.key = default_keypair
+        self.keyfile = default_keyfile
+
 class EC2Node(object):
     '''
     describe and control EC2 nodes within an EC2 cloud
@@ -273,6 +303,9 @@ class EC2Node(object):
 
     def start(self):
 
+        if not self.cloud.key:
+            raise Exception("No key specified, not starting nodes.")
+    
         vm = self._vm
         if vm:
             if vm.state == 'running' or vm.state == 'pending':

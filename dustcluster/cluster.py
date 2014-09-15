@@ -5,6 +5,7 @@ Cloud cluster class
 import re
 import fnmatch
 
+from dustcluster import loadcnf
 from dustcluster.util import setup_logger
 logger = setup_logger( __name__ )
 
@@ -15,14 +16,14 @@ class Cluster(object):
 
     def __init__(self):
         self.cloud = None
-        self.keyfile = ''
 
-    def set_template(self, cloud):
-        '''
-        set the cloud object returned by loading a template
-        '''
-        self.cloud = cloud
-        self.keyfile = self.cloud.keyfile
+    def load_template(self, config_file):
+        ''' load a cluster template ''' 
+        self.cloud = loadcnf.load_template(config_file)
+
+    def load_default_keys(self, default_keypath):
+        ''' load default dust keys or create them '''
+        self.cloud.load_default_keys(default_keypath)
 
     def _filter(self, nodes, filterkey, filterval):
         '''
@@ -91,3 +92,4 @@ class Cluster(object):
             return
         self.cloud.show(target)
 
+    

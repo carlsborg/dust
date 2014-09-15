@@ -13,7 +13,6 @@ from pkgutil import walk_packages
 from cmd import Cmd
 
 import dustcluster.lineterm as lineterm
-from dustcluster.loadcnf import load_template
 from dustcluster import commands
 from dustcluster.cluster import Cluster
 
@@ -28,6 +27,7 @@ class Console(Cmd):
 
     prompt = "dust:%s$ " % socket.gethostname()
     dustintro  = "Dust cluster shell, version %s. Type ? for help." % __version__ 
+    default_keypath = os.path.join(os.getcwd(), 'keys')
 
     def __init__(self):
         Cmd.__init__(self)
@@ -37,22 +37,22 @@ class Console(Cmd):
         # startup
         self.load_commands()
 
-        default_config = 'xdefault.cnf'
+        default_config = 'default.cnf'
         if os.path.exists(default_config):
-            logger.info('found %s, loading template' % default_config)
-            self.cloud = load_template(default_config)
-            self.cluster.set_template(self.cloud)
+            logger.info('Found %s, loading template' % default_config)
+            self.cluster.load_template(default_config)
+            self.cluster.load_default_keys(self.default_keypath)
 
         self.exit_flag = False
         lineterm.refresh_callback = self.redisplay
-        logger.info( self.dustintro )
+        logger.info(self.dustintro)
 
     def redisplay(self):
         ''' refresh the prompt '''
         sys.stdout.write('\n\r' + self.prompt)
         sys.stdout.write(readline.get_line_buffer())
         sys.stdout.flush()
-        
+
     def load_commands(self):
         '''
         dynamically import modules from under dustcluster.commands, and discover commands 
@@ -182,14 +182,14 @@ class Console(Cmd):
 
         Note: 
         If a template file called default.cnf exists in the current working directory, it gets loaded on startup.
+        If key, keyfile are not specified, a default key in ./keys/default.key is created or re-used.
 
         Example:
         load samples/ec2sample.cnf
         '''
 
-        cloud = load_template(configfile)
-        if cloud: 
-            self.cluster.set_template(cloud)
+        self.cluster.load_template(configfile)
+        self.cluster.load_default_keys(self.default_keypath)
 
     def do_exit(self, _):
         '''
@@ -205,4 +205,5 @@ class Console(Cmd):
         EOF/Ctrl D - exit dust shell
         '''
         return self.do_exit(line)
+
 

@@ -7,6 +7,10 @@
 # the @cloud section defines the cloud name, provider and node defaults 
 # the @nodename sections define EC2 node with tags name=nodename
 
+#key=test2
+
+#
+#keyfile=/home/booda/dev/dust/test2.pem
 ########################################################################
 
 @cloud
@@ -14,8 +18,6 @@ provider=ec2
 name=democloud
 region=eu-west-1
 username=ubuntu
-key=test2
-keyfile=/home/booda/dev/dust/test2.pem
 
 @master
 instance_type=m3.medium

@@ -23,13 +23,13 @@ def atssh(cmdline, cluster, logger):
     if sshcmd:
         logger.info( 'running [%s] over ssh on nodes: %s' % (sshcmd,  str([node.name for node in target_nodes])) )
         for node in target_nodes:
-            lineterm.command(cluster.keyfile, node, sshcmd)
+            lineterm.command(cluster.cloud.keyfile, node, sshcmd)
     else:
         if len(target_nodes) > 1: 
             logger.info( 'Raw shell support is for single host targets only. See help atssh' )
             return
 
-        lineterm.shell(cluster.keyfile, target_nodes[0])
+        lineterm.shell(cluster.cloud.keyfile, target_nodes[0])
 
     logger.info('ok')
 

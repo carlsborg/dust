@@ -6,12 +6,15 @@ Tested on: Debian 7, Python 2.7.3
 1. Install pip if you dont have it:
 
 > sudo apt-get install python-pip
+
 > sudo pip install -U pip
 
 2. Install dependencies:
 
 > sudo apt-get install python-dev
+
 > sudo pip install boto
+
 > sudo pip install paramiko
 
 ###Quick Start
@@ -52,7 +55,7 @@ aws_secret_access_key = YourSecretAccessKey
 Load a sample template
 
 > dust$ load samples/ec2sample.cnf
-> 
+
 > loaded template samples/ec2sample.cnf with 5 nodes
 
 this loads a template with a node called master and 4 nodes called worker0 to worker3.
@@ -75,3 +78,6 @@ Copy the files to the correct location
 
 > @worker*  cp slurm.conf /etc/slurm-llnl
 
+#### Working with existing EC2 instances
+
+Edit and load the template samples/cloud.cnf. It defines basic cloud config including region and key. 

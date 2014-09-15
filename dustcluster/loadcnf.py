@@ -18,39 +18,40 @@ def load_template(config_file):
     load a cluster template and create cloud and node objects
     TODO: validate all config options
     '''
-    
-    config = DustConfigParser()
-    config.read(config_file)
+    try:
+        config = DustConfigParser()
+        config.read(config_file)
 
-    if not os.path.exists(config_file) or not config:
-        logger.error('Could not load config file %s' % config_file)
-        return None
+        if not os.path.exists(config_file) or not config:
+            raise Exception('Could not load config file %s' % config_file)
 
-    if not config.has_section('cloud'):
-        logger.error('load_template: cannot find @cloud section in template.')
-        return None
+        if not config.has_section('cloud'):
+            raise Exception('load_template: cannot find @cloud section in template.')
 
-    cloudopts = dict( config.items('cloud') )
+        cloudopts = dict( config.items('cloud') )
 
-    provider = cloudopts.pop('provider', '')
-    if provider != 'ec2': 
-        logger.error('load_template: missing or unknown cloud.provider specified - %s' %  provider)
+        provider = cloudopts.pop('provider', '')
+        if provider != 'ec2': 
+            raise Exception('load_template: missing or unknown cloud.provider specified - %s' %  provider)
 
-    # create cloud
-    cloud = EC2Cloud(**cloudopts)
+        # create cloud
+        cloud = EC2Cloud(**cloudopts)
 
-    sections  = config.sections()
-    for section in sections:
-        if section.lower() == 'cloud':
-            continue
+        sections  = config.sections()
+        for section in sections:
+            if section.lower() == 'cloud':
+                continue
 
-        nodeopts = dict( config.items(section) )
+            nodeopts = dict( config.items(section) )
 
-        # create node
-        worker = EC2Node(name=section, **nodeopts)
-        cloud.add_node(worker)
+            # create node
+            worker = EC2Node(name=section, **nodeopts)
+            cloud.add_node(worker)
 
-    logger.error('loaded template %s with %s nodes' % (config_file, (len(sections)-1)))
+        logger.info('loaded template %s with %s nodes' % (config_file, (len(sections)-1)))
+    except Exception, ex:
+        logger.error('Error loding template : %s' % ex)
+        cloud = None
 
     return cloud
 

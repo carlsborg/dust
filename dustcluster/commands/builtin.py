@@ -52,7 +52,8 @@ def operation(logger, cluster, op, target_node_str=None, confirm=False):
             getattr(node, op)()
 
     except Exception, e:
-        logger.error(e)
+        logger.exception('Error: %s' % e)
+        return
 
     logger.info( 'ok' )
 
