@@ -81,7 +81,7 @@ Browse local file system, and upload a file to the cluster
 
 Copy the files to the correct location
 
-> @worker*  cp slurm.conf /etc/slurm-llnl
+> @worker*  sudo cp slurm.conf /etc/slurm-llnl
 
 #### Working with existing EC2 instances
 
