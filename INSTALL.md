@@ -43,9 +43,11 @@ Paste the credentials in a boto config
 
 > vim  ~/.boto
 
+```
 [Credentials]
 aws_access_key_id = YOUR_ACCESS_KEY_ID
 aws_secret_access_key = YourSecretAccessKey
+```
 
 ####3. Get dust
 
