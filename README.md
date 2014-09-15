@@ -8,7 +8,7 @@ Status:
 * Developed/tested with Python 2.7
 * Currently, this is unstable/head work in progress
 
-[Installation and quick start](Install.md)
+[Installation and quick start](INSTALL.md)
 
 ## Rationale
 
