@@ -12,14 +12,11 @@ Status:
 
 ## Rationale
 
-While developing/prototyping on EC2 clusters, one often needs to bring up a set of nodes, invoke exploratory ssh commands on  
-the cluster, stop some nodes, resize them, terminate others, and bring the whole cluster back up later on. 
+While developing/prototyping on EC2 clusters, one often needs to bring up a set of nodes, invoke exploratory ssh commands on the cluster, stop some nodes, resize them, terminate others, and bring the whole cluster back up later on. 
 
 Dust was created primarily for such dev work.
 
-The underlying philosophy is that it should be simple to setup a cluster via config, and manage it from the command line. Any
- cloud features that would require complex command line configuration are better done via drop-in python dust commands. 
-Any _repeatable_ OS configuration tasks are better done by invoking a configuration management tool, possibly via a python dust command.
+The underlying philosophy is that it should be simple to setup a cluster via config, and manage it from the command line. Any cloud features that would require complex command line configuration are better done via drop-in python dust commands. Any repeatable OS configuration tasks are better done by invoking a configuration management tool, possibly via a python dust command.
 
 ## Usage
 Running dust.py drops to a shell that allows you to: 
@@ -190,4 +187,3 @@ Unrecognized commands drop to the system shell, so you can edit files, run confi
 from the same prompt.
 
 
-[Installation and quick start](Install.md)
