@@ -51,9 +51,23 @@ image=ami-3eb46b49
 
 > dust$ show
 
+```
+dust:dragonex$ show
+dust:2014-09-14 08:29:22,234 | cluster 'democloud' in eu-west-1, using key: ec2dust
+        Name     Instance        Image        State           ID           IP          DNS         tags 
+Template Nodes:
+     worker1     t2.small ami-892fe1fe  not_started                                                     
+     worker0     t2.small ami-892fe1fe  not_started                                                     
+     worker2     t2.small ami-892fe1fe  not_started                                                     
+      master    m3.medium ami-892fe1fe  not_started                                                     
+```
+
+
 > dust$ start
 
 > dust$ show
+
+The nodes should be in the pending state, and the ID, IP and DNS fields populated.
 
 ### Use filter expressions and wildcards for operations on node subsets
 
