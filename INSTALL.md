@@ -19,7 +19,8 @@ Tested on: Debian 7, Python 2.7.3
 
 > sudo pip install paramiko
 
-###Quick Start
+
+###Configure 
 
 
 ####1. Get EC2 account credentials 
@@ -49,11 +50,13 @@ aws_access_key_id = YOUR_ACCESS_KEY_ID
 aws_secret_access_key = YourSecretAccessKey
 ```
 
-####3. Get dust
+###Kick the tires
+
+####1. Get dust
 
 > $git clone https://github.com/carlsborg/dust.git
 
-####4. Drop into a dust shell
+####2. Drop into a dust shell
 
 > $python dust.py 
 
@@ -85,4 +88,4 @@ Copy the files to the correct location
 
 #### Working with existing EC2 instances
 
-Edit and load the template samples/cloud.cnf. It defines basic cloud config including region and key. 
+Edit and load the template samples/cloud.cnf. It defines basic cloud config including region and key, but no nodes.
