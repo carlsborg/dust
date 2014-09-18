@@ -51,19 +51,9 @@ image=ami-3eb46b49
 
 > dust$ show
 
-
 > dust$ start
 
-
 > dust$ show
-
-dust:2014-09-09 08:00:13,838 | cluster 'democloud' in eu-west-1, using key: test2
-        Name     Instance        Image        State           ID           IP          DNS         tags 
-Template Nodes:
-     worker1     t2.small ami-3eb46b49      stopped   i-6989cd29         None              {u'name': u'worker1'} 
-     worker0     t2.small ami-3eb46b49      stopped   i-f61b5eb6         None              {u'name': u'worker0'} 
-     worker2     t2.small ami-3eb46b49      stopped   i-f15d19b1         None              {u'name': u'worker2'} 
-      master    m3.medium ami-896c96fe      stopped   i-8adc8ac8         None              {u'name': u'master'} 
 
 ### Use filter expressions and wildcards for operations on node subsets
 
