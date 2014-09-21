@@ -16,7 +16,7 @@ While developing/prototyping on EC2 clusters, one often needs to bring up a set 
 
 Dust is an ssh cluster shell primarily useful for development, prototyping, custom configuration of EC2 clusters.
 
-The underlying philosophy is that it should be simple to setup a cluster via config, and manage it from the command line. Any cloud features that would require complex command line configuration are better done via drop-in python dust commands. Any repeatable OS configuration tasks are better done by invoking a configuration management tool, possibly via a python dust command.
+The underlying philosophy is that it should be simple to setup a cluster via config, and manage it from the command line; any cloud configuration tasks that would require complex command line options are better done via drop-in python dust commands; and any repeatable OS configuration tasks are better done by invoking a configuration management tool, possibly via a python dust command.
 
 ## Usage
 Running dust.py drops to a shell that allows you to: 
