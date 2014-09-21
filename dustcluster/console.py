@@ -82,8 +82,13 @@ class Console(Cmd):
         # import commands and add them to the commands map
         for cmdmod in cmdmods:
             newmod = __import__(cmdmod, fromlist=['commands'])
-            for cmdname, cmdhelp in newmod.commands.items():
-                self.commands[cmdname] = (cmdhelp, newmod)
+
+            for cmdname in newmod.commands:
+                cmdfunc =  getattr(newmod, cmdname, 'None')
+                if not cmdfunc:
+                    logger.error('exported command %s not found in %s' % (cmdname, newmod))
+                    continue
+                self.commands[cmdname] = (cmdfunc.__doc__, newmod)
 
         end_time = time.time()
 
@@ -209,7 +214,7 @@ class Console(Cmd):
         '''
         exit - exit dust shell
         '''     
-        logger.info( 'exiting dust console. please check for updates/file bugs at http://github.com/carlsborg/dust.')
+        logger.info( 'Exiting dust console. Find updates, file bugs at http://github.com/carlsborg/dust.')
         self.cluster.logout()
         self.exit_flag = True
         return True

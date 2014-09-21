@@ -15,23 +15,26 @@
 from collections import namedtuple
 from dustcluster.EC2 import EC2Cloud, EC2Node
 
-AuthRule = namedtuple('AuthRule', 'protocol portstart portend cidrip')
+#export commands
+commands = ['ec2sec', 'define_template']
 
-# Add custom rules to the default security group
-
-# See here for details
-# http://docs.aws.amazon.com/AWSEC2/latest/CommandLineReference/ApiReference-cmd-AuthorizeSecurityGroupIngress.html
-# http://boto.readthedocs.org/en/latest/security_groups.html
-
-authrules = [
-AuthRule('tcp', 80, 80, '0.0.0.0/0'),   # http 
-AuthRule('icmp', -1, -1, '0.0.0.0/0')   # all icmp messages
-]
 
 def ec2sec(cmdline, cluster, logger):
     '''
-    configure security group
+    ec2sec [show] [add] - configure the default security group
     '''
+
+    AuthRule = namedtuple('AuthRule', 'protocol portstart portend cidrip')
+
+    # Add custom rules to the default security group
+    # See here for details
+    # http://docs.aws.amazon.com/AWSEC2/latest/CommandLineReference/ApiReference-cmd-AuthorizeSecurityGroupIngress.html
+    # http://boto.readthedocs.org/en/latest/security_groups.html
+
+    authrules = [
+    AuthRule('tcp', 80, 80, '0.0.0.0/0'),   # http 
+    AuthRule('icmp', -1, -1, '0.0.0.0/0')   # all icmp messages
+    ]
 
     args = cmdline
 
@@ -78,18 +81,4 @@ def define_template(cmdline, cluster, logger):
         cloud.add_node(worker)
 
     cluster.set_template(cloud)
-
-# export commands
-commands  = {
-'ec2sec':   '''
-            ec2sec [show] [add] - configure the default security group
-            ''',
-'define_template':   '''
-                define_template - custom command, programatically create a cluster template and load it
-                '''
-}
-
-# set docstrings
-ec2sec.__doc__ = commands['ec2sec']
-define_template.__doc__ = commands['define_template']
 

@@ -14,9 +14,22 @@
 
 import glob
 
-def put(cmdline, cluster, logger):
-    ''' upload a file to a set of nodes ''' 
+# export commands
 
+commands = ['put', 'get']
+
+def put(cmdline, cluster, logger):
+    '''
+    put tgt src [dest] - upload src file to a set of target nodes
+
+    Notes:
+    src can have wildcards
+
+    Examples:
+    put worker* /opt/data/data.txt  # uploads data.txt to home dir
+    put worker* /opt/data/data.txt /opt/data/data.txt
+    put worker* /opt/data/*.txt     # wildcards work
+    '''
     target = cmdline.split()[0]
 
     target_nodes = cluster.running_nodes_from_target(target)
@@ -42,11 +55,19 @@ def put(cmdline, cluster, logger):
 
 
 def get(cmdline, cluster, logger):
-    ''' download a file from a set of nodes ''' 
+    '''
+    get tgt remotefile [localdir] - download remotefile from a set of nodes to [localdir] or cwd as remotefile.nodename
 
+    Notes:
+    remotefile can be a wildcard 
+    
+    Example:
+    get worker* /opt/output/*.txt        # download to cwd
+    get worker* /opt/output/*.txt /tmp   # download to /tmp
+    '''
     target = cmdline.split()[0]
 
-    target_nodes = running_nodes_from_target(target, cluster, logger)
+    target_nodes = cluster.running_nodes_from_target(target)
     if not target_nodes:
         return
 
@@ -63,18 +84,5 @@ def get(cmdline, cluster, logger):
         localdir = arrargs[1]
 
     for node in target_nodes:
-        cluster.lineterm.get(cluster.cloud.keyfile, node, remotefile, localdir)
-
-commands = {
-'put':  '''
-        put tgt src [dest] - upload src file to a set of target nodes
-        ''',
-'get':  '''
-        get tgt remotefile [localdir] - download remotefile from a set of nodes to [localdir] or cwd as remotefile.nodename
-        '''
-}
-
-# set docstrings
-put.__doc__ = commands['put']
-get.__doc__ = commands['get']
-
+        for fname in glob.iglob(remotefile): 
+            cluster.lineterm.get(cluster.cloud.keyfile, node, fname, localdir)

@@ -141,8 +141,7 @@ class EC2Cloud(object):
             logger.info( 'no template nodes defined, and no cloud nodes found' )
             return
 
-        headers = nodes[0].disp_headers() if nodes else nonmember_nodes[0].disp_headers()
-        headerfmt =  "%12s " * len(headers)
+        headers, headerfmt = nodes[0].disp_headers() if nodes else nonmember_nodes[0].disp_headers()
         print headerfmt % tuple(headers)
 
         if nodes:
@@ -365,19 +364,20 @@ class EC2Node(object):
             EC2Session.conn().terminate_instances( instance_ids = instance_ids )
 
     def disp_headers(self):
-        headers = ["Name", "Instance", "Image", "State", "ID", "IP", "DNS", "tags"]
-        return headers
+        headers = ["Name", "Instance", "State", "ID",  "IP", "DNS"]
+        fmt =     "%-12s %-12s %-12s %-10s %-15s %s"
+        return headers, fmt
 
     def disp_data(self):
 
-        vals = [self._name, self._instance_type, self._image]
+        vals = [self._name, self._instance_type]
 
         if self._vm:
             vm = self._vm
-            vmdata = [vm.state, vm.id, vm.ip_address, vm.public_dns_name, vm.tags]
+            vmdata = [vm.state, vm.id, vm.ip_address, vm.public_dns_name]
             vals += vmdata
         else:
-            vals += ['not_started', '', '', '', '']
+            vals += ['not_started', '', '', '']
 
         return vals
 

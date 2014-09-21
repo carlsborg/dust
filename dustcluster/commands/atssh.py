@@ -15,13 +15,33 @@
 dust command for invoking ssh operations on a set of nodes, or entering a raw ssh shell to a single node 
 '''
 
-# @target cmd - line bufferred and raw mode ssh 
+# export commands
+commands  = ['atssh']
+
+# @target cmd - line bufferred and raw mode ssh
 
 def atssh(cmdline, cluster, logger):
     '''
-    ssh commands
-    '''
+    @[target] [cmd]     - ssh command or ssh shell.  see help atssh.
 
+    @[target] [cmd]     - execute shell command cmd on [target]
+    @ [cmd]             - execute shell command cmd on all nodes
+    @nodename           - enter raw shell mode on a single node 
+
+    Arguments:
+    shell cmd   --- Shell command to invoke on the nodes via ssh 
+    target      --- A node name or filter expression (see help filters) 
+                    Node names and filter values can be wildcards
+    nodename    --  A single node name
+
+    
+    @[target] [cmd] and @[nodename] use the same interactive shell.
+
+    Example:
+    @worker* restart service xyz
+    @master sudo apt-get install xyz
+    @ tail /etc/resolve.conf
+    '''
     is_error = False
 
     try:
@@ -51,31 +71,4 @@ def atssh(cmdline, cluster, logger):
     if not is_error:
         logger.info('ok')
 
-# export commands
-commands  = { 
-'atssh':    '''
-        @[target] [cmd]     - ssh command or ssh shell.  see help atssh.
-
-        @[target] [cmd]     - execute shell command cmd on [target]
-        @ [cmd]             - execute shell command cmd on all nodes
-        @nodename           - enter raw shell mode on a single node 
-
-        Arguments:
-        shell cmd   --- Shell command to invoke on the nodes via ssh 
-        target      --- A node name or filter expression (see help filters) 
-                        Node names and filter values can be wildcards
-        nodename    --  A single node name
-
-        
-        @[target] [cmd] and @[nodename] use the same interactive shell.
-
-        Example:
-        @worker* restart service xyz
-        @master sudo apt-get install xyz
-        @ tail /etc/resolve.conf
-        '''
-}
-
-# set docstrings
-atssh.__doc__ = commands['atssh']
 
