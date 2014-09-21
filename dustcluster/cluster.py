@@ -39,6 +39,10 @@ class Cluster(object):
         ''' load default dust keys or create them '''
         self.cloud.load_default_keys(default_keypath)
 
+    def set_template(self, cloud):
+        ''' set a cluster template ''' 
+        self.cloud = cloud
+ 
     def _filter(self, nodes, filterkey, filterval):
         '''
         filter a list of nodes by attribute values

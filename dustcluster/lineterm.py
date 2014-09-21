@@ -17,7 +17,7 @@ from threading import Thread
 import select
 import socket
 import sys
-import os
+import os, struct, fcntl
 
 from paramiko.py3compat import u
 import paramiko
@@ -265,6 +265,11 @@ class SSHTerm(object):
         tty.setcbreak(sys.stdin.fileno())
         self.chan.settimeout(0.0)
 
+        # set pty size
+        s = struct.pack ("HHHH", 0, 0, 0, 0)
+        sz = struct.unpack ('HHHH', fcntl.ioctl(sys.stdout.fileno(), termios.TIOCGWINSZ , s))
+        self.chan.resize_pty(sz[1], sz[0])
+
         ctrlc_count = 0
 
         ctrlout = False
@@ -389,7 +394,8 @@ class LineTerm(object):
                     term.enable_echo()
                 term.raw_shell()
         except Exception, e:
-            logger.error(e)
+            logger.error('Dust: Error: %s' % e)
+            raise
         finally:
             if term:
                 term.revert_tty()
