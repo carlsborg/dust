@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 # Copyright (c) Ran Dugal 2014
 #
 # This file is part of dust.
@@ -18,6 +18,14 @@ import sys
 import logging
 
 from dustcluster.console import Console
+
+if sys.version < '2.6' or sys.version >= '3.0':
+  print 'Dust has only been tested with Python 2.7. Your version is %s. Exiting' % sys.version.split()[0]
+  sys.exit(1)
+
+if 'posix' not in os.name:
+  print 'Dust has only been tested with on Linux. Exiting'
+  sys.exit(1)
 
 def run_console():
     '''
