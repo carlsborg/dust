@@ -12,6 +12,7 @@
 
 ''' EC2 cloud and node objects '''
 import os, sys
+from copy import deepcopy
 import boto, boto.ec2
 
 from dustcluster.util import setup_logger
@@ -114,7 +115,7 @@ class EC2Cloud(object):
         for vm in vms:
             node = self._node_for_vm(vm, nodes)
             if not node or node.vm:
-                tmpnode = EC2Node(vm=vm, username=self.username)
+                tmpnode = EC2Node(vm=deepcopy(vm), username=self.username)
                 tmpnode.is_template_node = False
                 nonmember_nodes.append(tmpnode)
                 continue

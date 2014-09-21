@@ -17,6 +17,8 @@ Cloud cluster class
 import re
 import fnmatch
 
+from copy import deepcopy
+
 from dustcluster import loadcnf
 from dustcluster.lineterm import LineTerm
 from dustcluster.util import setup_logger
@@ -30,10 +32,16 @@ class Cluster(object):
     def __init__(self):
         self.cloud = None
         self.lineterm = LineTerm()
+        self.nodecache = None # invalidated on load template/start/stop/terminate
+
+    def invalidate_cache(self):
+        if self.nodecache:
+            self.nodecache = None
 
     def load_template(self, config_file):
         ''' load a cluster template ''' 
         self.cloud = loadcnf.load_template(config_file)
+        self.invalidate_cache()
 
     def load_default_keys(self, default_keypath):
         ''' load default dust keys or create them '''
@@ -42,6 +50,7 @@ class Cluster(object):
     def set_template(self, cloud):
         ''' set a cluster template ''' 
         self.cloud = cloud
+        self.invalidate_cache()
  
     def _filter(self, nodes, filterkey, filterval):
         '''
@@ -87,7 +96,11 @@ class Cluster(object):
                 filterkey, filterval = 'name', target_node_name
 
         # refresh state and identify template nodes
-        member_nodes, nonmember_nodes = self.cloud.retrieve_node_state()
+        if self.nodecache:
+            member_nodes, nonmember_nodes = self.nodecache
+        else:
+            member_nodes, nonmember_nodes = self.cloud.retrieve_node_state()
+            self.nodecache = (member_nodes, nonmember_nodes)
 
         if op:
             if filterkey:

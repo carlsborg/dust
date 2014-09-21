@@ -15,6 +15,7 @@
 
 def show(cmdline, cluster, logger):
     ''' write cluster node summary to stdout '''
+    cluster.invalidate_cache()
     target_nodes = cluster.resolve_target_nodes(op='', target_node_name=cmdline)
     if not target_nodes:
         return
@@ -23,14 +24,17 @@ def show(cmdline, cluster, logger):
 def start(cmdline, cluster, logger):
     ''' start/restart nodes '''
     operation(logger, cluster, 'start', cmdline)
+    cluster.invalidate_cache()
 
 def stop(cmdline, cluster, logger):
     ''' stop nodes '''
     operation(logger, cluster, 'stop', cmdline)
+    cluster.invalidate_cache()
 
 def terminate(cmdline, cluster, logger):
     ''' terminate nodes ''' 
     operation(logger, cluster, 'terminate', cmdline, confirm=True)
+    cluster.invalidate_cache()
 
 def operation(logger, cluster, op, target_node_str=None, confirm=False):
     ''' invoke attribute op on a set of nodes ''' 

@@ -221,7 +221,7 @@ class SSHTerm(object):
         if not self.is_connected():
             try:
                 self.connect(hostname, username)
-                self.transport.set_keepalive(60*4)
+                self.transport.set_keepalive(60*3)
                 self.state = 'connected'
                 #self.disable_echo(auxcmd= "; echo %s" % self.login_complete_guid)
             except:

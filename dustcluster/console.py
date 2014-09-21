@@ -209,7 +209,7 @@ class Console(Cmd):
         '''
         exit - exit dust shell
         '''     
-        logger.info( 'exiting dustcluster console. please file bugs at http://github.com/carlsborg/dust.')
+        logger.info( 'exiting dust console. please check for updates/file bugs at http://github.com/carlsborg/dust.')
         self.cluster.logout()
         self.exit_flag = True
         return True
