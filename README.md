@@ -14,7 +14,7 @@ Status:
 
 While developing/prototyping on EC2 clusters, one often needs to bring up a set of nodes, invoke exploratory ssh commands on the cluster, stop some nodes, resize them, terminate others, and bring the whole cluster back up later on. 
 
-Dust was created primarily for such dev work.
+Dust is an ssh cluster shell primarily useful for development, prototyping, custom configuration of EC2 clusters.
 
 The underlying philosophy is that it should be simple to setup a cluster via config, and manage it from the command line. Any cloud features that would require complex command line configuration are better done via drop-in python dust commands. Any repeatable OS configuration tasks are better done by invoking a configuration management tool, possibly via a python dust command.
 
