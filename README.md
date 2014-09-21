@@ -14,9 +14,9 @@ Status:
 
 While developing/prototyping on EC2 clusters, one often needs to bring up a set of nodes, invoke exploratory ssh commands on the cluster, stop some nodes, resize them, terminate others, and bring the whole cluster back up later on. 
 
-Dust was created primarily for such dev work.
+Dust is an ssh cluster shell primarily useful for development, prototyping, custom configuration of EC2 clusters.
 
-The underlying philosophy is that it should be simple to setup a cluster via config, and manage it from the command line. Any cloud features that would require complex command line configuration are better done via drop-in python dust commands. Any repeatable OS configuration tasks are better done by invoking a configuration management tool, possibly via a python dust command.
+The underlying philosophy is that it should be simple to setup a cluster via config, and manage it from the command line; any cloud configuration tasks that would require complex command line options are better done via drop-in python dust commands; and any repeatable OS configuration tasks are better done by invoking a configuration management tool, possibly via a python dust command.
 
 ## Usage
 Running dust.py drops to a shell that allows you to: 
@@ -175,7 +175,7 @@ sends a Y to all the nodes named work\* and the apt-get script continues.
 This enters the a regular interactive ssh shell on worker2 -- for running full screen console apps such as vim 
 or top. Reusing the same ssh session as the one above, but in char buffered mode. 
 
-When done, exit the shell completely ($exit) or keep it going in the background (Ctrl-C x3) for future line 
+When done, log out of the ssh shell ($exit) or keep it going in the background (Ctrl-C x3) for future line 
 buffered commands or raw shell mode.
 
 
