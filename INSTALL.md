@@ -1,15 +1,17 @@
 
 ###Install 
 
+
 Tested on: Debian 7, Python 2.7.3
 
-1. Install pip if you dont have it:
+#### 1. Install pip if you dont have it:
 
 > sudo apt-get install python-pip
 
 > sudo pip install -U pip
 
-2. Install dependencies:
+
+#### 2.  Install dependencies:
 
 > sudo apt-get install python-dev
 
@@ -17,7 +19,9 @@ Tested on: Debian 7, Python 2.7.3
 
 > sudo pip install paramiko
 
-###Quick Start
+
+###Configure 
+
 
 ####1. Get EC2 account credentials 
 
@@ -40,15 +44,19 @@ Paste the credentials in a boto config
 
 > vim  ~/.boto
 
+```
 [Credentials]
 aws_access_key_id = YOUR_ACCESS_KEY_ID
 aws_secret_access_key = YourSecretAccessKey
+```
 
-####3. Get dust
+###Kick the tires
+
+####1. Get dust
 
 > $git clone https://github.com/carlsborg/dust.git
 
-####4. Drop into a dust shell and issue some commands
+####2. Drop into a dust shell
 
 > $python dust.py 
 
@@ -76,8 +84,8 @@ Browse local file system, and upload a file to the cluster
 
 Copy the files to the correct location
 
-> @worker*  cp slurm.conf /etc/slurm-llnl
+> @worker*  sudo cp slurm.conf /etc/slurm-llnl
 
 #### Working with existing EC2 instances
 
-Edit and load the template samples/cloud.cnf. It defines basic cloud config including region and key. 
+Edit and load the template samples/cloud.cnf. It defines basic cloud config including region and key, but no nodes.

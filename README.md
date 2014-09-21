@@ -8,18 +8,15 @@ Status:
 * Developed/tested with Python 2.7
 * Currently, this is unstable/head work in progress
 
-[Installation and quick start](Install.md)
+[Installation and quick start](INSTALL.md)
 
 ## Rationale
 
-While developing/prototyping on EC2 clusters, one often needs to bring up a set of nodes, invoke exploratory ssh commands on  
-the cluster, stop some nodes, resize them, terminate others, and bring the whole cluster back up later on. 
+While developing/prototyping on EC2 clusters, one often needs to bring up a set of nodes, invoke exploratory ssh commands on the cluster, stop some nodes, resize them, terminate others, and bring the whole cluster back up later on. 
 
 Dust was created primarily for such dev work.
 
-The underlying philosophy is that it should be simple to setup a cluster via config, and manage it from the command line. Any
- cloud features that would require complex command line configuration are better done via drop-in python dust commands. 
-Any _repeatable_ OS configuration tasks are better done by invoking a configuration management tool, possibly via a python dust command.
+The underlying philosophy is that it should be simple to setup a cluster via config, and manage it from the command line. Any cloud features that would require complex command line configuration are better done via drop-in python dust commands. Any repeatable OS configuration tasks are better done by invoking a configuration management tool, possibly via a python dust command.
 
 ## Usage
 Running dust.py drops to a shell that allows you to: 
@@ -54,19 +51,23 @@ image=ami-3eb46b49
 
 > dust$ show
 
+```
+dust:dragonex$ show
+dust:2014-09-14 08:29:22,234 | cluster 'democloud' in eu-west-1, using key: ec2dust
+        Name     Instance        Image        State           ID           IP          DNS         tags 
+Template Nodes:
+     worker1     t2.small ami-892fe1fe  not_started                                                     
+     worker0     t2.small ami-892fe1fe  not_started                                                     
+     worker2     t2.small ami-892fe1fe  not_started                                                     
+      master    m3.medium ami-892fe1fe  not_started                                                     
+```
+
 
 > dust$ start
 
-
 > dust$ show
 
-dust:2014-09-09 08:00:13,838 | cluster 'democloud' in eu-west-1, using key: test2
-        Name     Instance        Image        State           ID           IP          DNS         tags 
-Template Nodes:
-     worker1     t2.small ami-3eb46b49      stopped   i-6989cd29         None              {u'name': u'worker1'} 
-     worker0     t2.small ami-3eb46b49      stopped   i-f61b5eb6         None              {u'name': u'worker0'} 
-     worker2     t2.small ami-3eb46b49      stopped   i-f15d19b1         None              {u'name': u'worker2'} 
-      master    m3.medium ami-896c96fe      stopped   i-8adc8ac8         None              {u'name': u'master'} 
+The nodes should be in the pending state, and the ID, IP and DNS fields populated.
 
 ### Use filter expressions and wildcards for operations on node subsets
 
@@ -190,4 +191,3 @@ Unrecognized commands drop to the system shell, so you can edit files, run confi
 from the same prompt.
 
 
-[Installation and quick start](Install.md)
