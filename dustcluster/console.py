@@ -7,18 +7,18 @@ import sys
 import socket
 import os
 import readline
+import logging
 
 from collections import defaultdict
 from pkgutil import walk_packages
 from cmd import Cmd
 
-import dustcluster.lineterm as lineterm
 from dustcluster import commands
 from dustcluster.cluster import Cluster
 
 
-from dustcluster.util import setup_logger
-logger = setup_logger( __name__ )
+from dustcluster import util
+logger = util.setup_logger( __name__ )
 
 __version__ = '0.01 head/unstable'
 
@@ -34,6 +34,9 @@ class Console(Cmd):
         self.cluster = Cluster()
         self.commands = {}  # { cmd : (helpstr, module) }
 
+        util.intro()
+        logger.info(self.dustintro)
+
         # startup
         self.load_commands()
 
@@ -44,8 +47,7 @@ class Console(Cmd):
             self.cluster.load_default_keys(self.default_keypath)
 
         self.exit_flag = False
-        lineterm.refresh_callback = self.redisplay
-        logger.info(self.dustintro)
+        self.cluster.lineterm.set_refresh_callback(self.redisplay)
 
     def redisplay(self):
         ''' refresh the prompt '''
@@ -196,7 +198,7 @@ class Console(Cmd):
         exit - exit dust shell
         '''     
         logger.info( 'exiting dustcluster console. please file bugs at http://github.com/carlsborg/dust.')
-        lineterm.shutdown()
+        self.cluster.logout()
         self.exit_flag = True
         return True
 
@@ -206,4 +208,17 @@ class Console(Cmd):
         '''
         return self.do_exit(line)
 
+    def do_loglevel(self, line):
+        '''
+        loglevel [info|debug] - turn up/down the logging to debug/info
+        '''
+
+        if line.lower() == 'info':
+            logging.getLogger().setLevel( logging.INFO )
+            logger.info('switched log level to INFO') 
+        if line.lower() == 'debug':
+            logging.getLogger().setLevel( logging.DEBUG )
+            logger.info('switched log level to DEBUG')
+        else:
+            logger.info('undefined log level %s' % line)
 

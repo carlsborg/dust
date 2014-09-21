@@ -318,6 +318,9 @@ class EC2Node(object):
                 return
 
         logger.info( 'starting node %s-%s' % (self._name, self) )
+
+        logger.debug( 'image=%s keypair=%s instance=%s' % (self._image, self.cloud.key, self._instance_type) )
+
         res = EC2Session.conn().run_instances(self._image, key_name=self.cloud.key, instance_type=self._instance_type)
         for inst in res.instances:
             inst.add_tag('name', self._name)
@@ -336,16 +339,17 @@ class EC2Node(object):
 
     def terminate(self):
 
-        tags = self._vm.tags
-        newname = ''
-        if tags and tags.get('name'):
-            newname = tags['name'] + '_terminated'
-            self._vm.add_tag('name', newname)
+        if self._vm:
+            tags = self._vm.tags
+            newname = ''
+            if tags and tags.get('name'):
+                newname = tags['name'] + '_terminated'
+                self._vm.add_tag('name', newname)
 
-        instance_ids = [self._vm.id]
+            instance_ids = [self._vm.id]
 
-        EC2Session.conn().stop_instances( instance_ids = instance_ids )
-        EC2Session.conn().terminate_instances( instance_ids = instance_ids )
+            EC2Session.conn().stop_instances( instance_ids = instance_ids )
+            EC2Session.conn().terminate_instances( instance_ids = instance_ids )
 
     def disp_headers(self):
         headers = ["Name", "Instance", "Image", "State", "ID", "IP", "DNS", "tags"]

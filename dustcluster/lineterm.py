@@ -13,9 +13,6 @@ import paramiko
 from dustcluster.util import setup_logger
 logger = setup_logger( __name__ )
 
-# Optional callback after a block of ssh output is written to stdout. 
-# for commands issued in interactive mode this need not be the end of output     
-refresh_callback = None
 
 # Once a session has been setup a program at the remote end can be  
 # executed with SSH_MSG_CHANNEL_REQUEST, with string 'shell', 'exec', or 
@@ -28,6 +25,7 @@ class ReceiveDemux(object):
     ''' receive demultiplexer for all open ssh interactive shells ''' 
 
     def __init__(self, session_mgr):
+        self.refresh_callback = None
         self.chans = {} # { chan : receive_buffer }
         self.session_mgr = session_mgr
         self.state = 'created'
@@ -61,7 +59,7 @@ class ReceiveDemux(object):
                     try:
                         readbytes = u(achan.recv(1024))
                         if len(readbytes) == 0:
-                            sys.stdout.write('\r\nConnection terminated.\r\n')
+                            sys.stdout.write('\r\SSH session disconnected.\r\n')
                             sys.stdout.flush()
                             self.stop(achan)
                             break
@@ -119,14 +117,16 @@ class ReceiveDemux(object):
                         wrote_output = True
 
                 #reset prompt
-                if wrote_output and refresh_callback:
-                    refresh_callback()
+                if wrote_output and self.refresh_callback:
+                    self.refresh_callback()
 
         return 0
 
 
 class SessionManager(object):
-    ''' holds a map of node ids to sessions '''
+    ''' holds a map of node ids to ssh sessions
+        registers/unregisters ssh sessions with the demultiplexer 
+    '''
 
     def __init__(self):
         self.demux = ReceiveDemux(self)
@@ -143,9 +143,6 @@ class SessionManager(object):
             if nodeterm == term:
                 del self.session_map[nodeid]
 
-    def on_login(self, term):
-        self.demux.start(term)
-
     def shutdown(self):
         for term in self.session_map.values():
             term.shutdown()
@@ -161,6 +158,7 @@ class SessionManager(object):
         if not term:
             term = SSHTerm(node, keyfile)
             term.login()
+            self.demux.start(term)
             self.session_map[node.id] = term
 
         if not term.is_connected():
@@ -169,96 +167,11 @@ class SessionManager(object):
 
         return term
 
-g_session_manager = SessionManager()
-
-def command(keyfile, node, cmd=None):
-    ''' send a command to an interactive ssh shell.
-        if cmd is None enter a raw shell input loop.
-        in both cases log in if not logged in.
-    '''
-    term = None
-    try:
-        term = g_session_manager.term_from_node(node, keyfile)
-
-        if cmd:
-            term.command(cmd)
-        else:
-            term.raw_shell()
-    except Exception, e:
-        logger.error(e)
-    finally:
-        if term:
-            term.revert_tty()
-
-def shell(keyfile, node):
-
-    logger.info(\
-     '*** Entering raw shell, press ctrl-c thrice to return to cluster shell. Press Enter to continue.***')
-
-    raw_input()
-    command(keyfile, node, cmd=None)
-
-def put(keyfile, node, srcfile, destfile=None):
-
-    if not os.path.isfile(srcfile):
-        logger.error('file does not exist locally : %s' % srcfile)
-        return
-
-    try:
-        term = g_session_manager.term_from_node(node, keyfile)
-        if not term.sftp:
-            term.sftp = paramiko.SFTPClient.from_transport(term.transport)
-
-        sftp = term.sftp
-        fname = os.path.basename(srcfile)
-        if not destfile:
-            destfile = fname
-        ret = sftp.put(srcfile, destfile, confirm=True)
-        
-        if not getattr(ret, 'filename', None):
-            ret.filename = os.path.basename(destfile)
-        
-        logger.info('uploaded to %s : %s' % (node.name, ret))
-    except Exception, e:
-        logger.error(e)
-
-
-def get(keyfile, node, remotefile, localdir):
-
-    if localdir and not os.path.isdir(localdir):
-        logger.error('dir does not exist locally : %s' % localdir)
-        return
-
-    try:
-        term = g_session_manager.term_from_node(node, keyfile)
-        if not term.sftp:
-            term.sftp = paramiko.SFTPClient.from_transport(term.transport)
-
-        fname = os.path.basename(remotefile)
-        if localdir:
-            localfile = os.path.join(localdir, fname)
-        else:
-            localfile = fname
-
-        localfile = '%s.%s' % (localfile, node.name)
-
-        sftp = term.sftp
-        sftp.get(remotefile, localfile)
-
-        logger.info('downloaded from %s : %s' % (node.name, localfile))
-    except Exception, e:
-        logger.error(e)
-
-
-def shutdown():
-    g_session_manager.shutdown()
-
 
 class SSHTerm(object):
     '''
-    Ssh client session - starts an interactive shell
-    Takes line input via commands 
-    Can enter a char bufferred mode so you can run top vim etc
+    Ssh client session - starts an interactive ssh shell
+    Takes line input commands or enters a char bufferred raw terminal
     '''
 
     prompt = "dust:ssh:%s:$ "
@@ -277,11 +190,13 @@ class SSHTerm(object):
 
         self.recvbuf = u('')
         self.login_guid_found = True
-        
-        self.raw_shell_mode = False
-        self.oldattrs    = None
 
-        self.sftp        = None # sftp subservice
+        self.raw_shell_mode = False
+        self.oldattrs  = None
+
+        self.sftp = None # sftp subservice
+
+        self.echo  = True
 
     def is_connected(self):
         return self.transport and self.transport.is_authenticated() and self.transport.is_active()
@@ -290,14 +205,12 @@ class SSHTerm(object):
         hostname = self.node.hostname
         username = self.node.username
 
-        logger.info('DEBUG: hostname=%s, username=%s, key=%s' % (hostname, username, self.keyfile))
+        logger.debug('hostname=%s, username=%s, key=%s' % (hostname, username, self.keyfile))
         if not self.is_connected():
             try:
                 self.connect(hostname, username)
                 self.transport.set_keepalive(60*4)
                 self.state = 'connected'
-                g_session_manager.on_login(self)
-                self.disable_echo()
                 #self.disable_echo(auxcmd= "; echo %s" % self.login_complete_guid)
             except:
                 logger.error('error on ssh login on host %s :' % (hostname))
@@ -307,6 +220,7 @@ class SSHTerm(object):
         logger.info( '%s: disabling echo' % self.node.name )
         cmd = "stty -echo; export PS1='' "
         self.command(cmd + auxcmd)
+        self.echo = False
 
     def enable_echo(self, auxcmd=''):
         logger.info( '%s: enabling echo' % self.node.name )
@@ -314,6 +228,7 @@ class SSHTerm(object):
         prompt = "rawshell:%s:\w\$ " % self.node.name
         cmd = "stty echo; export PS1='%s'" % prompt
         self.command(cmd + auxcmd)
+        self.echo = True
 
     def raw_shell_other(self):
         print "raw mode shell not suppported on this system yet."
@@ -332,7 +247,6 @@ class SSHTerm(object):
         import tty
 
         self.raw_shell_mode = True
-        self.enable_echo()
 
         self.oldattrs = termios.tcgetattr(sys.stdin)
         tty.setraw(sys.stdin.fileno())
@@ -429,4 +343,104 @@ class SSHTerm(object):
         self.chan = self.transport.open_session()
         self.chan.get_pty()
         self.chan.invoke_shell()
+
+
+
+class LineTerm(object):
+    '''
+    top level api - implements ssh and raw terminal functionality for a set of nodes 
+    '''
+
+    def __init__(self):
+        self.session_manager = SessionManager()
+
+    def set_refresh_callback(self, callback):
+        '''Optional callback after a block of ssh output is written to stdout. 
+            for commands issued in interactive mode this need not be the end of output 
+        '''
+        self.session_manager.demux.refresh_callback = callback
+
+    def command(self, keyfile, node, cmd=None):
+        ''' send a command to an interactive ssh shell or enter a raw shell input loop.
+            in both cases log in if not logged in. 
+        '''
+        term = None
+        try:
+            term = self.session_manager.term_from_node(node, keyfile)
+
+            if cmd:
+                if term.echo:
+                    term.disable_echo()
+                term.command(cmd)
+            else:
+                if not term.echo:
+                    term.enable_echo()
+                term.raw_shell()
+        except Exception, e:
+            logger.error(e)
+        finally:
+            if term:
+                term.revert_tty()
+
+    def shell(self, keyfile, node):
+
+        logger.info(\
+         '*** Entering raw shell, press ctrl-c thrice to return to cluster shell. Press Enter to continue.***')
+
+        raw_input()
+        self.command(keyfile, node, cmd=None)
+
+    def put(self, keyfile, node, srcfile, destfile=None):
+
+        if not os.path.isfile(srcfile):
+            logger.error('file does not exist locally : %s' % srcfile)
+            return
+
+        try:
+            term = self.session_manager.term_from_node(node, keyfile)
+            if not term.sftp:
+                term.sftp = paramiko.SFTPClient.from_transport(term.transport)
+
+            sftp = term.sftp
+            fname = os.path.basename(srcfile)
+            if not destfile:
+                destfile = fname
+            ret = sftp.put(srcfile, destfile, confirm=True)
+            
+            if not getattr(ret, 'filename', None):
+                ret.filename = os.path.basename(destfile)
+            
+            logger.info('uploaded to %s : %s' % (node.name, ret))
+        except Exception, e:
+            logger.error(e)
+
+
+    def get(self, keyfile, node, remotefile, localdir):
+
+        if localdir and not os.path.isdir(localdir):
+            logger.error('dir does not exist locally : %s' % localdir)
+            return
+
+        try:
+            term = self.session_manager.term_from_node(node, keyfile)
+            if not term.sftp:
+                term.sftp = paramiko.SFTPClient.from_transport(term.transport)
+
+            fname = os.path.basename(remotefile)
+            if localdir:
+                localfile = os.path.join(localdir, fname)
+            else:
+                localfile = fname
+
+            localfile = '%s.%s' % (localfile, node.name)
+
+            sftp = term.sftp
+            sftp.get(remotefile, localfile)
+
+            logger.info('downloaded from %s : %s' % (node.name, localfile))
+        except Exception, e:
+            logger.error(e)
+
+    def shutdown(self):
+        self.session_manager.shutdown()
 

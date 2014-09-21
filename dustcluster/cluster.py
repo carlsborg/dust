@@ -6,6 +6,7 @@ import re
 import fnmatch
 
 from dustcluster import loadcnf
+from dustcluster.lineterm import LineTerm
 from dustcluster.util import setup_logger
 logger = setup_logger( __name__ )
 
@@ -16,6 +17,7 @@ class Cluster(object):
 
     def __init__(self):
         self.cloud = None
+        self.lineterm = LineTerm()
 
     def load_template(self, config_file):
         ''' load a cluster template ''' 
@@ -92,4 +94,26 @@ class Cluster(object):
             return
         self.cloud.show(target)
 
-    
+
+    def running_nodes_from_target(self, target_str):
+        '''
+        params: same as a command
+        returns: target_nodes : a list of running target nodes
+        '''
+
+        target_nodes = self.resolve_target_nodes(target_node_name=target_str)
+
+        if not target_nodes:
+            return None
+
+        target_nodes = [node for node in target_nodes if node.state == 'running']
+
+        if not target_nodes:
+            logger.info( 'No target nodes are in the running state' )
+            return None
+
+        return target_nodes
+
+    def logout(self):
+        self.lineterm.shutdown()
+

@@ -2,8 +2,6 @@
 
 # programatically create a cluster template and load it
 
-import dustcluster.lineterm as lineterm
-from dustcluster.util import running_nodes_from_target
 import glob
 
 
@@ -12,7 +10,7 @@ def put(cmdline, cluster, logger):
 
     target = cmdline.split()[0]
 
-    target_nodes = running_nodes_from_target(target, cluster, logger)
+    target_nodes = cluster.running_nodes_from_target(target)
     if not target_nodes:
         return
 
@@ -31,7 +29,7 @@ def put(cmdline, cluster, logger):
 
     for node in target_nodes:
         for fname in glob.iglob(srcfile): 
-            lineterm.put(cluster.keyfile, node, fname, destfile)
+            cluster.lineterm.put(cluster.cloud.keyfile, node, fname, destfile)
 
 
 def get(cmdline, cluster, logger):
@@ -56,7 +54,7 @@ def get(cmdline, cluster, logger):
         localdir = arrargs[1]
 
     for node in target_nodes:
-        lineterm.get(cluster.keyfile, node, remotefile, localdir)
+        cluster.lineterm.get(cluster.cloud.keyfile, node, remotefile, localdir)
 
 commands = {
 'put':  '''

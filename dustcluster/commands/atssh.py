@@ -2,9 +2,6 @@
 dust command for invoking ssh operations on a set of nodes, or entering a raw ssh shell to a single node 
 '''
 
-import dustcluster.lineterm as lineterm 
-from dustcluster.util import running_nodes_from_target
-
 # @target cmd - line bufferred and raw mode ssh 
 
 def atssh(cmdline, cluster, logger):
@@ -12,26 +9,34 @@ def atssh(cmdline, cluster, logger):
     ssh commands
     '''
 
-    target = cmdline.split()[0]
+    is_error = False
 
-    target_nodes = running_nodes_from_target(target, cluster, logger)
-    if not target_nodes:
-        return
+    try:
+        target = cmdline.split()[0]
 
-    sshcmd = cmdline[len(target):].strip()
-
-    if sshcmd:
-        logger.info( 'running [%s] over ssh on nodes: %s' % (sshcmd,  str([node.name for node in target_nodes])) )
-        for node in target_nodes:
-            lineterm.command(cluster.cloud.keyfile, node, sshcmd)
-    else:
-        if len(target_nodes) > 1: 
-            logger.info( 'Raw shell support is for single host targets only. See help atssh' )
+        target_nodes = cluster.running_nodes_from_target(target)
+        if not target_nodes:
             return
 
-        lineterm.shell(cluster.cloud.keyfile, target_nodes[0])
+        sshcmd = cmdline[len(target):].strip()
 
-    logger.info('ok')
+        if sshcmd:
+            logger.info( 'running [%s] over ssh on nodes: %s' % (sshcmd,  str([node.name for node in target_nodes])) )
+            for node in target_nodes:
+                cluster.lineterm.command(cluster.cloud.keyfile, node, sshcmd)
+        else:
+            if len(target_nodes) > 1: 
+                logger.info( 'Raw shell support is for single host targets only. See help atssh' )
+                return
+
+            cluster.lineterm.shell(cluster.cloud.keyfile, target_nodes[0])
+
+    except Exception, ex:
+        logger.exception( ex )
+        is_error = True
+
+    if not is_error:
+        logger.info('ok')
 
 # export commands
 commands  = { 

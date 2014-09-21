@@ -20,22 +20,18 @@ def setup_logger(sname):
     return logger
 
 
-def running_nodes_from_target(target_str, cluster, logger):
-    '''
-    params: same as a command
-    returns: target_nodes : a list of running target nodes
-    '''
+def intro():
+    s_intro = r'''
+        .___              __  
+      __| _/_ __  _______/  |_
+     / __ |  |  \/  ___/\   __\
+    / /_/ |  |  /\___ \  |  | 
+    \____ |____//____  > |__| 
+         \/          \/      
+       
+     [..Dust Cluster Shell..] 
 
-    target_nodes = cluster.resolve_target_nodes(target_node_name=target_str)
+'''
 
-    if not target_nodes:
-        return None
-
-    target_nodes = [node for node in target_nodes if node.state == 'running']
-
-    if not target_nodes:
-        logger.info( 'No target nodes are in the running state' )
-        return None
-
-    return target_nodes
+    print s_intro
 
