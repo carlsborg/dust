@@ -175,7 +175,7 @@ sends a Y to all the nodes named work\* and the apt-get script continues.
 This enters the a regular interactive ssh shell on worker2 -- for running full screen console apps such as vim 
 or top. Reusing the same ssh session as the one above, but in char buffered mode. 
 
-When done, exit the shell completely ($exit) or keep it going in the background (Ctrl-C x3) for future line 
+When done, log out of the ssh shell ($exit) or keep it going in the background (Ctrl-C x3) for future line 
 buffered commands or raw shell mode.
 
 
