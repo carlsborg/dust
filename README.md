@@ -69,6 +69,11 @@ Template Nodes:
 
 The nodes should be in the pending state, and the ID, IP and DNS fields populated.
 
+**Note on authentication**:
+
+Only key based authentication is supported. If key and keyfile are not specified in the config above, a new key pair is created in ./keys/clustername.pem and used for starting nodes.
+
+
 ### Use filter expressions and wildcards for operations on node subsets
 
 The generalized usage of commands in dust is:
