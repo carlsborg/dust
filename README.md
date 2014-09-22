@@ -87,7 +87,7 @@ e.g. target is nodes where state=stopped
 > dust$ start state=stop*    # filters can have wildcards 
 
 
-### Send line-buffered shell commands over ssh to a set of nodes
+### Send line-buffered commands over ssh to a set of nodes
 
 Use
 
@@ -127,6 +127,8 @@ Using filter expressions:
 
 > dust$ @state=running  ls /var/log
 
+> dust$ @id=i-c123*  ls /var/log
+
 > dust$ @state=run\*  ls -l /var/log/auth.log
 
 ```
@@ -142,6 +144,38 @@ Using filter expressions:
 [worker2] 
 ```
 
+
+Note that we are demultiplexing full interactive ssh shells here:
+
+So this works:
+
+> dust$ @worker0 cd /tmp
+
+> dust$ @worker0 pwd
+
+```
+[worker0] /tmp
+[worker0] 
+
+[worker1] /tmp
+[worker1] 
+```
+
+And so does this:
+
+> dust$ @worker0 sleep 10 && echo '5 second sleep - DONE!' & 
+
+> dust$ @worker0 ls -l /var/log/boot.log
+
+```
+[worker0] -rw------- 1 root root 0 Sep 19 13:18 /var/log/boot.log
+[worker0] 
+
+# 10 seconds later
+
+[worker0] DONE!!
+[worker0] 
+```
 
 ### Send line-buffered responses to interactive shell commands on a set of nodes
 
