@@ -149,9 +149,9 @@ Note that we are demultiplexing full interactive ssh shells here:
 
 So this works:
 
-> dust$ @worker0 cd /tmp
+> dust$ @worker* cd /tmp
 
-> dust$ @worker0 pwd
+> dust$ @worker* pwd
 
 ```
 [worker0] /tmp
