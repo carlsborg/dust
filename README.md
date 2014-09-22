@@ -168,7 +168,8 @@ So this works:
 
 And so does this:
 
-> dust$ @worker0 sleep 10 && echo '5 second sleep - DONE!' & 
+> dust$ @worker0 sleep 10 && echo '10 second sleep done!' & 
+
 
 > dust$ @worker0 ls -l /var/log/boot.log
 
@@ -178,7 +179,7 @@ And so does this:
 
 # 10 seconds later
 
-[worker0] DONE!!
+[worker0] 10 second sleep done!
 [worker0] 
 ```
 
