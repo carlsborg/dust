@@ -6,17 +6,15 @@ Dust is an ssh cluster shell for EC2
 Status:
 * Tested/known to work on Linux only (Debian, Ubuntu, CentOS)
 * Developed/tested with Python 2.7
-* Currently, this is unstable/head work in progress
+* Currently, this is pre-alpha/head work in progress
 
 [Installation and quick start](INSTALL.md)
 
 ## Rationale
 
-While developing/prototyping on EC2 clusters, one often needs to bring up a set of nodes, invoke exploratory ssh commands on the cluster, stop some nodes, resize them, terminate others, and bring the whole cluster back up later on. 
+Dust is an ssh cluster shell primarily useful for development, prototyping, one-off configuration of (usually ephemeral) EC2 clusters. Suitable for small clusters, maybe 10 nodes.
 
-Dust is an ssh cluster shell primarily useful for development, prototyping, custom configuration of EC2 clusters.
-
-The underlying philosophy is that it should be simple to setup a cluster via config, and manage it from the command line; any cloud configuration tasks that would require complex command line options are better done via drop-in python dust commands; and any repeatable OS configuration tasks are better done by invoking a configuration management tool, possibly via a python dust command.
+The underlying philosophy is that it should be simple to setup a cluster via config, and manage it from the command line; any cloud configuration tasks that would require complex command line options are better done via drop-in python dust commands; and any repeatable OS configuration tasks are better done by invoking a configuration management tool like fabric/puppet/ansible, possibly via a python dust command.
 
 ## Usage
 Running dust.py drops to a shell that allows you to: 
@@ -74,31 +72,41 @@ The nodes should be in the pending state, and the ID, IP and DNS fields populate
 Only key based authentication is supported. If key and keyfile are not specified in the config above, a new key pair is created in ./keys/clustername.pem and used for starting nodes.
 
 
-### Use filter expressions and wildcards for operations on node subsets
+### Target a set of nodes with wildcards and filter expressions
 
-The generalized usage of commands in dust is:
+The basic node operations are start/stop/terminate 
 
-> $somecmd [target] args
+with wildcards:
 
-e.g. target is nodes named worker*
-> dust$ stop worker\*             
+> dust$ stop worker\*
 
-e.g. target is nodes named worker0, worker1, worker2
+> dust$ start wo\*
+
 > dust$ terminate worker[0-2]
 
-e.g. target is nodes where state=stopped
-> dust$ start state=stopped     
+with filter expressions:
 
-> dust$ start state=stop*    # filters can have wildcards 
+> dust$ start state=stopped
+
+> dust$ start state=stop*       # filters can have wildcards 
+
+The general form for node opertions is
+
+> start/stop/terminate [target]
+
+No target implies all nodes.
 
 
-### Send line-buffered commands over ssh to a set of nodes
+### Cluster ssh to a set of nodes
 
-Use
+Execute 'uptime' over ssh on a set of nodes with:
 
-> @[target] cmd
+> dust$ @worker\* uptime
 
-to execute cmd over ssh on nodes defined by [target]
+The general form for ssh is:
+
+> dust$ @[target] command
+
 
 e.g.
 
@@ -120,13 +128,13 @@ e.g.
 [worker2] 
 ```
 
-Equivalent ways to address the same node set, using wildcards:
+Again, [target] can have wildcards:
 
 > dust$ @worker[0-2]  ls /var/log
 
 > dust$ @w\*  ls /var/log
 
-Using filter expressions:
+Or filter expressions:
 
 > dust$ stop master
 
@@ -149,8 +157,7 @@ Using filter expressions:
 [worker2] 
 ```
 
-
-Note that we are demultiplexing full interactive ssh shells here:
+### These are demultiplexed fully interactive ssh shells !
 
 So this works:
 
@@ -183,7 +190,7 @@ And so does this:
 [worker0] 
 ```
 
-### Send line-buffered responses to interactive shell commands on a set of nodes
+And this:
 
 > dust$ @worker\* sudo apt-get install nginx
 
@@ -208,18 +215,30 @@ And so does this:
 
 sends a Y to all the nodes named work\* and the apt-get script continues.
 
-### Enter a fully interactive raw shell on a single node 
+### Run vim or top on a single node, with the same ssh session ! 
 
 > dust$ @worker2
 
-This enters the a regular interactive ssh shell on worker2 -- for running full screen console apps such as vim 
-or top. Reusing the same ssh session as the one above, but in char buffered mode. 
+The ssh '@' operator with a target and no commands enters a regular interactive ssh shell on a single node -- for running full screen console apps such as vim or top. 
+
+This re-uses the same ssh session as the one above, but in char buffered mode:
+
+> dust$ @worker* cd /tmp
+
+> dust$ @worker0
+
+> rawshell:worker0:/tmp$ pwd
+
+```
+/tmp
+```
+
 
 When done, log out of the ssh shell ($exit) or keep it going in the background (Ctrl-C x3) for future line 
 buffered commands or raw shell mode.
 
 
-### Extensible drop in commands 
+### Add custom functionality with drop-in python commands 
 
 To add functionality, drop in a python file implementing new commands into dustcluster/commands. 
 
