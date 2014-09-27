@@ -4,7 +4,7 @@
 
 # usage:
 # enter a dust.py shell
-# $load sample.ec2.cnf
+# $load samples/ec2sample.cnf
 # $show
 # .. shows the defined nodes
 # $start
@@ -26,9 +26,9 @@ name=democloud
 region=eu-west-1
 username=ubuntu
 
+#commented out, so creates/uses a default keypair /keys/ec2key.pem
 #key=existing_keypairname
 #keyfile=/path/to/existing/key.pem
-#commented out, creates/uses default keypair
 
 @master
 instance_type=m3.medium
