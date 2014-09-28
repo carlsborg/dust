@@ -152,7 +152,7 @@ class ReceiveDemux(object):
             if not r and not e:
                 self.handle_timeout()
 
-        logger.info('Exiting receive loop.\r\n')
+        logger.debug('Exiting receive loop.\r\n')
 
         return 0
 

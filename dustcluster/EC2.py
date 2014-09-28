@@ -24,31 +24,44 @@ class EC2Cloud(object):
     describe and control EC2 clouds
     '''
 
-    def __init__(self, name, key='', region="", image="", username="", keyfile=""):
+    def __init__(self, name, key='', region="", image="", username="", keyfile="", profile=None):
 
         if not region:
             region = 'eu-west-1'
 
-        self._connection = self.connect(region, verbose=False)
-
+        self._connection = None
         self.name   = name
         self.key    = key
         self.region = region
         self.image  = image
         self.username = username
         self.keyfile = keyfile
+        self.profile = profile
 
         self.template_nodes = {}
 
-    def connect(self, region, verbose):
-        if verbose:
-            boto.set_stream_logger('boto')
-        conn = boto.ec2.connect_to_region(region)
-        logger.debug( 'Connected, boto version: %s' % conn.APIVersion )
+    def connect(self):
+
+        if not self.region:
+            raise Exception('No region specified. Will not connect.')
+
+        conn = boto.ec2.connect_to_region(self.region, profile_name=self.profile)
+
+        logger.debug('Connected, boto version: %s' % conn.APIVersion)
         return conn
 
     def conn(self):
+
+        if not self._connection:
+            self._connection=self.connect()
+
         return self._connection
+
+    def set_verbosity(self,level):
+        if level == 'debug':
+            boto.set_stream_logger('boto')
+        else:
+            boto.set_stream_logger(None)
 
     def add_node(self, node):
 
@@ -352,8 +365,8 @@ class EC2Node(object):
             self.cloud.conn().terminate_instances( instance_ids = instance_ids )
 
     def disp_headers(self):
-        headers = ["Name", "Instance", "State", "ID",  "IP", "DNS"]
-        fmt =     "%-12s %-12s %-12s %-10s %-15s %s"
+        headers = ["Name", "Instance", "State", "ID",  "ext_IP", "int_IP", "DNS"]
+        fmt =     "%-12s %-12s %-12s %-10s %-15s %-15s %s"
         return headers, fmt
 
     def disp_data(self):
@@ -362,7 +375,7 @@ class EC2Node(object):
 
         if self._vm:
             vm = self._vm
-            vmdata = [vm.state, vm.id, vm.ip_address, vm.public_dns_name]
+            vmdata = [vm.state, vm.id, vm.ip_address, vm.private_ip_address, vm.public_dns_name]
             vals += vmdata
         else:
             vals += ['not_started', '', '', '']

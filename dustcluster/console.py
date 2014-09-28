@@ -230,12 +230,15 @@ class Console(Cmd):
         loglevel [info|debug] - turn up/down the logging to debug/info
         '''
 
-        if line.lower() == 'info':
+        level = line.strip().lower()
+
+        if level == 'info':
             logging.getLogger().setLevel( logging.INFO )
             logger.info('switched log level to INFO') 
-        if line.lower() == 'debug':
+        if level == 'debug':
             logging.getLogger().setLevel( logging.DEBUG )
             logger.info('switched log level to DEBUG')
         else:
             logger.info('undefined log level %s' % line)
 
+        self.cluster.set_verbosity(level)
