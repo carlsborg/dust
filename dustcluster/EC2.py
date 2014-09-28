@@ -19,25 +19,6 @@ from dustcluster.util import setup_logger
 logger = setup_logger( __name__ )
 
 
-class EC2Session(object):
-    '''global cloud session - used by cloud, node and orphaned node objects'''
-
-    _connection     = None
-
-    def __init__(self):
-        raise Exception("static invocation only")
-
-    @staticmethod
-    def connect(region, verbose):
-        if verbose:
-            boto.set_stream_logger('boto')
-        EC2Session._connection = boto.ec2.connect_to_region(region)
-        logger.debug( 'boto version: %s' % EC2Session._connection.APIVersion )
-
-    @staticmethod
-    def conn():
-        return EC2Session._connection
-
 class EC2Cloud(object):
     '''
     describe and control EC2 clouds
@@ -48,7 +29,7 @@ class EC2Cloud(object):
         if not region:
             region = 'eu-west-1'
 
-        EC2Session.connect(region, verbose=False)
+        self._connection = self.connect(region, verbose=False)
 
         self.name   = name
         self.key    = key
@@ -59,8 +40,15 @@ class EC2Cloud(object):
 
         self.template_nodes = {}
 
+    def connect(self, region, verbose):
+        if verbose:
+            boto.set_stream_logger('boto')
+        conn = boto.ec2.connect_to_region(region)
+        logger.debug( 'Connected, boto version: %s' % conn.APIVersion )
+        return conn
+
     def conn(self):
-        return EC2Session.conn()
+        return self._connection
 
     def add_node(self, node):
 
@@ -115,7 +103,7 @@ class EC2Cloud(object):
         for vm in vms:
             node = self._node_for_vm(vm, nodes)
             if not node or node.vm:
-                tmpnode = EC2Node(vm=deepcopy(vm), username=self.username)
+                tmpnode = EC2Node(vm=deepcopy(vm), username=self.username, cloud=self)
                 tmpnode.is_template_node = False
                 nonmember_nodes.append(tmpnode)
                 continue
@@ -180,7 +168,7 @@ class EC2Cloud(object):
 
     def _get_instances(self, iids=None):
         ret = []
-        reservations = EC2Session.conn().get_all_reservations(instance_ids=iids)
+        reservations = self.conn().get_all_reservations(instance_ids=iids)
         for r in reservations:
             for i in r.instances:
                 ret.append(i)
@@ -231,7 +219,7 @@ class EC2Node(object):
     describe and control EC2 nodes within an EC2 cloud
     '''
 
-    def __init__(self, name="", instance_type="", image="",  username='', vm=None):
+    def __init__(self, name="", instance_type="", image="",  username='', vm=None, cloud=None):
 
         if vm:
             self._name      = vm.tags.get('name') or ""
@@ -246,7 +234,7 @@ class EC2Node(object):
 
         self._username = username
         self.is_template_node = False
-        self.cloud = None
+        self.cloud = cloud or None
         self.context = {}
 
     def __repr__(self):
@@ -317,7 +305,7 @@ class EC2Node(object):
 
         if not self.cloud.key:
             raise Exception("No key specified, not starting nodes.")
-    
+
         vm = self._vm
         if vm:
             if vm.state == 'running' or vm.state == 'pending':
@@ -326,14 +314,14 @@ class EC2Node(object):
 
             if vm.state == 'stopped':
                 logger.info( 'restarting node %s : %s' % (self._name, self) )
-                EC2Session.conn().start_instances(instance_ids=[vm.id])
+                self.cloud.conn().start_instances(instance_ids=[vm.id])
                 return
 
         logger.info( 'starting node %s-%s' % (self._name, self) )
 
         logger.debug( 'image=%s keypair=%s instance=%s' % (self._image, self.cloud.key, self._instance_type) )
 
-        res = EC2Session.conn().run_instances(self._image, key_name=self.cloud.key, instance_type=self._instance_type)
+        res = self.cloud.conn().run_instances(self._image, key_name=self.cloud.key, instance_type=self._instance_type)
         for inst in res.instances:
             inst.add_tag('name', self._name)
 
@@ -345,7 +333,7 @@ class EC2Node(object):
                 return 
             else:
                 logger.info('stopping %s' % self._name)
-                EC2Session.conn().stop_instances(instance_ids = [vm.id])
+                self.cloud.conn().stop_instances(instance_ids = [vm.id])
         else:
             logger.error('no vm that matches node defination for %s' %  self._name)
 
@@ -360,8 +348,8 @@ class EC2Node(object):
 
             instance_ids = [self._vm.id]
 
-            EC2Session.conn().stop_instances( instance_ids = instance_ids )
-            EC2Session.conn().terminate_instances( instance_ids = instance_ids )
+            self.cloud.conn().stop_instances( instance_ids = instance_ids )
+            self.cloud.conn().terminate_instances( instance_ids = instance_ids )
 
     def disp_headers(self):
         headers = ["Name", "Instance", "State", "ID",  "IP", "DNS"]

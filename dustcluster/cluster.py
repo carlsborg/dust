@@ -45,7 +45,10 @@ class Cluster(object):
 
     def load_default_keys(self, default_keypath):
         ''' load default dust keys or create them '''
-        self.cloud.load_default_keys(default_keypath)
+        try:
+            self.cloud.load_default_keys(default_keypath)
+        except Exception, ex:
+            logger.error('Error loading default keys: %s' % ex)
 
     def set_template(self, cloud):
         ''' set a cluster template ''' 
