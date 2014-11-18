@@ -12,7 +12,7 @@
 
 ''' EC2 cloud and node objects '''
 import os, sys
-from copy import deepcopy
+from copy import deepcopy, copy
 import boto, boto.ec2
 
 from dustcluster.util import setup_logger
@@ -116,7 +116,7 @@ class EC2Cloud(object):
         for vm in vms:
             node = self._node_for_vm(vm, nodes)
             if not node or node.vm:
-                tmpnode = EC2Node(vm=deepcopy(vm), username=self.username, cloud=self)
+                tmpnode = EC2Node(vm=vm, username=self.username, cloud=self)
                 tmpnode.is_template_node = False
                 nonmember_nodes.append(tmpnode)
                 continue
@@ -232,7 +232,7 @@ class EC2Node(object):
     describe and control EC2 nodes within an EC2 cloud
     '''
 
-    def __init__(self, name="", instance_type="", image="",  username='', vm=None, cloud=None):
+    def __init__(self, name="", instance_type="", image="",  username='', vm=None, cloud=None, security_groups=''):
 
         if vm:
             self._name      = vm.tags.get('name') or ""
@@ -245,10 +245,12 @@ class EC2Node(object):
             self._instance_type = instance_type
             self._vm        = None
 
+        self.security_groups = [sg.strip() for sg in security_groups.split(',')]
         self._username = username
         self.is_template_node = False
         self.cloud = cloud or None
         self.context = {}
+        self._secgroups = []
 
     def __repr__(self):
         data = self.disp_data()
@@ -307,7 +309,15 @@ class EC2Node(object):
     @username.setter
     def username(self, value):
         self._username = value
-    
+
+    @property
+    def security_groups(self):
+        return self._secgroups
+
+    @security_groups.setter
+    def security_groups(self, value):
+        self._secgroups = value
+
     def assign_vm(self, vm):
         self._vm  = vm
 
@@ -378,7 +388,7 @@ class EC2Node(object):
             vmdata = [vm.state, vm.id, vm.ip_address, vm.private_ip_address, vm.public_dns_name]
             vals += vmdata
         else:
-            vals += ['not_started', '', '', '']
+            vals += ['not_started', '', '', '', '']
 
         return vals
 
