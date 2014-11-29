@@ -69,6 +69,7 @@ def get(cmdline, cluster, logger):
 
     target_nodes = cluster.running_nodes_from_target(target)
     if not target_nodes:
+        logger.info('no running nodes match %s' % target)
         return
 
     args = cmdline[len(target):].strip()
@@ -84,5 +85,4 @@ def get(cmdline, cluster, logger):
         localdir = arrargs[1]
 
     for node in target_nodes:
-        for fname in glob.iglob(remotefile): 
-            cluster.lineterm.get(cluster.cloud.keyfile, node, fname, localdir)
+        cluster.lineterm.get(cluster.cloud.keyfile, node, remotefile, localdir)
