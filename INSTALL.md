@@ -78,8 +78,6 @@ Load a sample template
 
 this loads a template with a node called master and 4 nodes called worker0 to worker3.
 
-> dust$ Start workers
-
 > dust$ start worker* 
 
 > dust$ show 
