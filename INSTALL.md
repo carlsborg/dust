@@ -71,7 +71,9 @@ aws_secret_access_key = YourSecretAccessKey
 Load a sample template
 
 > dust$ load samples/ec2sample.cnf
+
 > loaded template samples/ec2sample.cnf with 5 nodes
+
 > dust$ show 
 
 this loads a template with a node called master and 4 nodes called worker0 to worker3.
@@ -79,6 +81,7 @@ this loads a template with a node called master and 4 nodes called worker0 to wo
 > dust$ Start workers
 
 > dust$ start worker* 
+
 > dust$ show 
 
 Check if ssh is working
