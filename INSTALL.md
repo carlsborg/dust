@@ -98,12 +98,16 @@ Browse local file system, and upload a file to the cluster
 
 > dust$ put worker* /etc/slurm-llnl/slurm.conf   # uploads to home dir
 
+Check the home directories for the files
+
+> dust$ @ pwd
+
+> dust$ @ ls -l
+
 Copy the files to the correct location
 
 > dust$ @worker*  sudo cp slurm.conf /etc/slurm-llnl
 
-> dust$ @ pwd
-> dust$ @ ls -l
 
 
 #### Working with existing EC2 instances
