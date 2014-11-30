@@ -70,13 +70,13 @@ aws_secret_access_key = YourSecretAccessKey
 
 Load a sample template
 
-> dust$ load samples/ec2sample.cnf
+> dust$ load samples/demo.cnf
 
-> loaded template samples/ec2sample.cnf with 5 nodes
+> loaded template samples/demo.cnf with 1+3 nodes
 
 > dust$ show 
 
-this loads a template with a node called master and 4 nodes called worker0 to worker3.
+this loads a template with a node called master and 3 nodes called worker0 to worker2.
 
 > dust$ start worker* 
 

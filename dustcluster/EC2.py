@@ -11,6 +11,7 @@
 #
 
 ''' EC2 cloud and node objects '''
+import logging
 import os, sys
 from copy import deepcopy, copy
 import boto, boto.ec2
@@ -40,6 +41,9 @@ class EC2Cloud(object):
 
         self.template_nodes = {}
 
+        boto.set_stream_logger('boto')
+        logging.getLogger('boto').setLevel( logging.INFO )
+
     def connect(self):
 
         if not self.region:
@@ -56,12 +60,6 @@ class EC2Cloud(object):
             self._connection=self.connect()
 
         return self._connection
-
-    def set_verbosity(self,level):
-        if level == 'debug':
-            boto.set_stream_logger('boto')
-        else:
-            boto.set_stream_logger(None)
 
     def add_node(self, node):
 

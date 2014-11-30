@@ -486,6 +486,8 @@ class LineTerm(object):
             localfile = '%s.%s' % (localfile, node.name)
 
             sftp = term.sftp
+            logger.info('getting %s' % (remotefile))
+
             sftp.get(remotefile, localfile)
 
             logger.info('downloaded from %s : %s' % (node.name, localfile))

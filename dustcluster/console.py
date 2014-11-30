@@ -25,7 +25,8 @@ from collections import defaultdict
 from pkgutil import walk_packages
 from cmd import Cmd
 
-from dustcluster import commands
+import paramiko
+from dustcluster import commands, lineterm
 from dustcluster.cluster import Cluster
 
 
@@ -43,9 +44,9 @@ class Console(Cmd):
 
     def __init__(self):
         Cmd.__init__(self)
+
         self.cluster = Cluster()
         self.commands = {}  # { cmd : (helpstr, module) }
-
         util.intro()
         logger.info(self.dustintro)
 
@@ -232,13 +233,23 @@ class Console(Cmd):
 
         level = line.strip().lower()
 
-        if level == 'info':
-            logging.getLogger().setLevel( logging.INFO )
-            logger.info('switched log level to INFO') 
-        if level == 'debug':
-            logging.getLogger().setLevel( logging.DEBUG )
+        if level.lower() == 'info':
+            self.set_loglevel(logging.INFO)
+            logger.info('switched log level to INFO')
+        elif level.lower() == 'debug':
+            self.set_loglevel(logging.DEBUG)
             logger.info('switched log level to DEBUG')
         else:
             logger.info('undefined log level %s' % line)
 
-        self.cluster.set_verbosity(level)
+    def set_loglevel(self, level):
+
+        logging.getLogger().setLevel(level)
+        for mname, mlogger in logging.Logger.manager.loggerDict.iteritems():
+            if getattr(mlogger, 'setLevel', None):
+                logger.debug('setting loglevel on %s' % mname)
+                mlogger.setLevel(level)
+
+        plogger = paramiko.util.logging.getLogger()
+        plogger.setLevel(level)
+

@@ -148,7 +148,3 @@ class Cluster(object):
 
     def logout(self):
         self.lineterm.shutdown()
-
-    def set_verbosity(self,level):
-        self.cloud.set_verbosity(level)
-
