@@ -50,6 +50,14 @@ aws_access_key_id = YOUR_ACCESS_KEY_ID
 aws_secret_access_key = YourSecretAccessKey
 ```
 
+Or create a named boto profile 
+
+```
+[profile Dust]
+aws_access_key_id = YOUR_ACCESS_KEY_ID
+aws_secret_access_key = YourSecretAccessKey
+```
+
 ###Kick the tires
 
 ####1. Get dust
