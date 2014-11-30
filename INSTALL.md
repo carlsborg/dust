@@ -82,13 +82,19 @@ this loads a template with a node called master and 4 nodes called worker0 to wo
 
 > dust$ show 
 
-Check if ssh is working
+After the show command shows all instances running, check if ssh is working
 
 > dust$ @worker* uname -a
 
+List conf files on all running machines
+
+> dust$ @ ls /etc/*.conf 
+
+(Note that @ with no target means all running nodes.) 
+
 Browse local file system, and upload a file to the cluster
 
-> dust$ ls /etc/slurm-llnl   # commands not recognized by dust drop to system shell
+> dust$ ls -l /etc/slurm-llnl   # commands not recognized by dust drop to system shell, e.g. vim, clear
 
 > dust$ put worker* /etc/slurm-llnl/slurm.conf   # uploads to home dir
 
