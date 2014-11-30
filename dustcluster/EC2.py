@@ -208,13 +208,21 @@ class EC2Cloud(object):
             self.keyfile = default_keyfile
             return
 
-        # check existing keys in the cloud 
+        if not os.path.exists(keypath):
+            logger.info('Creating local directory for ec2 dust keys: %s' % (keypath))
+            os.makedirs(keypath)
+
+        # check is the keys exists in the cloud
         keypairs = self.conn().get_all_key_pairs()
-        if default_keypair in keypairs:
-            logger.info('Found default key pair in cloud, downloading \
-                            key=%s keypath=%s' % (default_keypair,default_keyfile))
-            kp = keypairs[0]
-            ret = key.save(keypath)
+        for keypair in keypairs:
+            if keypair.name == default_keypair:
+                errstr = ('They key %s exists has been created on this account already. ' + 
+                        'Ec2 does not store private keys. Copy the key file to %s.pem to ' + 
+                        'the ./keys subdirectory and try again.' ) % (default_keypair, default_keypair)
+
+                logger.info('Cloud keys : %s' % str(keypairs)) 
+
+                raise Exception(errstr)
         else:
             # create it
             logger.info('Creating default key pair key=%s keypath=%s' % (default_keypair,default_keyfile))
