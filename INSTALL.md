@@ -71,28 +71,29 @@ aws_secret_access_key = YourSecretAccessKey
 Load a sample template
 
 > dust$ load samples/ec2sample.cnf
-
 > loaded template samples/ec2sample.cnf with 5 nodes
+> dust$ show 
 
 this loads a template with a node called master and 4 nodes called worker0 to worker3.
 
-Start workers
+> dust$ Start workers
 
-> start worker* 
+> dust$ start worker* 
+> dust$ show 
 
 Check if ssh is working
 
-> @worker* uname -a
+> dust$ @worker* uname -a
 
 Browse local file system, and upload a file to the cluster
 
-> $ls /etc/slurm-llnl   # commands not recognized by dust drop to system shell
+> dust$ ls /etc/slurm-llnl   # commands not recognized by dust drop to system shell
 
-> $put worker* /etc/slurm-llnl/slurm.conf   # uploads to home dir
+> dust$ put worker* /etc/slurm-llnl/slurm.conf   # uploads to home dir
 
 Copy the files to the correct location
 
-> @worker*  sudo cp slurm.conf /etc/slurm-llnl
+> dust$ @worker*  sudo cp slurm.conf /etc/slurm-llnl
 
 #### Working with existing EC2 instances
 
