@@ -102,6 +102,10 @@ Copy the files to the correct location
 
 > dust$ @worker*  sudo cp slurm.conf /etc/slurm-llnl
 
+> dust$ @ pwd
+> dust$ @ ls -l
+
+
 #### Working with existing EC2 instances
 
 Edit and load the template samples/cloud.cnf. It defines basic cloud config including region and key, but no nodes.
