@@ -84,6 +84,8 @@ this loads a template with a node called master and 3 nodes called worker0 to wo
 
 After the show command shows all instances running, check if ssh is working
 
+Note: It could take a few minutes for the ssh port to open after ec2 shows the instance as running. During this time connect+login will appear to hang. Asynch connect is a work in progress.
+
 > dust$ @worker* uname -a
 
 List conf files on all running machines
