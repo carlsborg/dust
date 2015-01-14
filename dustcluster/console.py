@@ -28,7 +28,7 @@ from cmd import Cmd
 import paramiko
 from dustcluster import commands, lineterm
 from dustcluster.cluster import Cluster
-
+import atexit
 
 from dustcluster import util
 logger = util.setup_logger( __name__ )
@@ -39,10 +39,21 @@ class Console(Cmd):
     ''' command line tool to control a cloud cluster '''
 
     prompt = "dust:%s$ " % socket.gethostname()
-    dustintro  = "Dust cluster shell, version %s. Type ? for help." % __version__ 
+    dustintro  = "Dust cluster shell, version %s. Type ? for help." % __version__
     default_keypath = os.path.join(os.getcwd(), 'keys')
 
+    history_file = '.dust_history'
+
     def __init__(self):
+
+        # load history
+        try:
+            readline.read_history_file(self.history_file)
+        except IOError:
+            pass
+
+        atexit.register(readline.write_history_file, self.history_file)
+
         Cmd.__init__(self)
 
         self.cluster = Cluster()
@@ -53,7 +64,7 @@ class Console(Cmd):
         # startup
         self.load_commands()
 
-        default_config = 'default.cnf'
+        default_config = 'default.yaml'
         if os.path.exists(default_config):
             logger.info('Found %s, loading template' % default_config)
             self.cluster.load_template(default_config)
@@ -209,7 +220,25 @@ class Console(Cmd):
         '''
 
         self.cluster.load_template(configfile)
-        self.cluster.load_default_keys(self.default_keypath)
+        if self.cluster.cloud:
+            self.cluster.load_default_keys(self.default_keypath)
+
+
+    def do_unload(self, configfile):
+        '''
+        unload  - unload the cloud definition, keeping the cloud defaults.
+
+        Note:
+        This shows you all the nodes on that region and account id.
+        Used with showex and tag, can be used to add existing nodes to a cloud.
+
+        Example:
+        unload
+        '''
+
+        #TODO
+        print 'not implemented, yet'
+
 
     def do_exit(self, _):
         '''

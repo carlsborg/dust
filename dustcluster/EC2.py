@@ -25,21 +25,27 @@ class EC2Cloud(object):
     describe and control EC2 clouds
     '''
 
-    def __init__(self, name, key='', region="", image="", username="", keyfile="", profile=None):
+    def __init__(self, name='', key='', region="", image="", login_username="", keyfile="", boto_profile=None, nodes=[]):
 
         if not region:
             region = 'eu-west-1'
 
         self._connection = None
+        # cluster name
         self.name   = name
         self.key    = key
         self.region = region
         self.image  = image
-        self.username = username
+        self.username = login_username
         self.keyfile = keyfile
-        self.profile = profile
+        self.profile = boto_profile
 
         self.template_nodes = {}
+
+        for node in nodes:
+            # create nodes
+            worker = EC2Node(**node)
+            self.add_node(worker)
 
         boto.set_stream_logger('boto')
         logging.getLogger('boto').setLevel( logging.INFO )
@@ -68,7 +74,7 @@ class EC2Cloud(object):
 
         if not node.image:
              node.image = self.image
-            
+
         if not node.username:
             node.username = self.username
 
@@ -78,7 +84,12 @@ class EC2Cloud(object):
         self.template_nodes[node.name] = node
 
     def show_cloud(self):
-        logger.info( "cluster '%s' in %s, using key: %s" % (self.name, self.region, self.key))
+
+        if self.name: 
+            logger.info( "cluster '%s' in %s, using key: %s" % (self.name, self.region, self.key))
+        else:
+            #defaults only, no cloud defined
+            logger.info( "no cluster defined. using defaults region %s and key %s" % (self.region, self.key))
 
     def _node_for_vm(self, vm, nodes):
 
@@ -128,31 +139,88 @@ class EC2Cloud(object):
 
         return nodes.values(), nonmember_nodes
 
-    def show_nodes(self, input_nodes=None):
 
-        if input_nodes:
-            nodes = [node for node in input_nodes if node.is_template_node == True]
-            nonmember_nodes = [node for node in input_nodes if node.is_template_node == False]
+    def hydrate_node_state(self, verbose=False):
+        ''' get all cloud reservations and their state, match to template and hydrate the template nodes'''
+
+        if self.name:
+            nodes = self.hydrate_template_nodes()
         else:
-            nodes, nonmember_nodes = self.retrieve_node_state(verbose=True)
+            nodes = self.hydrate_all_nodes()
 
-        if not nodes and not nonmember_nodes:
+        return nodes
+
+    def hydrate_all_nodes(self):
+        ''' no cloud template defined, just defaults, create nodes '''
+
+        logger.debug('hydrating from all cloud nodes')
+
+        vms = self._get_instances()
+
+        all_nodes = []
+        for vm in vms:
+            node = EC2Node(username=self.username, cloud=self)
+            node.hydrate(vm)
+            all_nodes.append(node)
+        return all_nodes
+
+    def hydrate_template_nodes(self):
+        '''
+            cycle through cloud reserverations, if part of this cluster hydrate a new node with it
+            at the end add all the template nodes with missing vms 
+        '''
+
+        logger.debug('hydrating cloud nodes for cloud template %s' % self.name)
+
+        vms = self._get_instances()
+        nodes = self.get_template_nodes()
+        defined_nodes = nodes.keys()
+
+        ret_nodes = []
+
+        for vm in vms:
+            if not vm.tags:
+                continue
+
+            if vm.tags.get('cluster') != self.name:
+                continue
+
+            node = EC2Node(username=self.username, cloud=self)
+            node.hydrate(vm)
+
+            # if its in defined_nodes, pop name from defined nodes
+            vmname = vm.tags.get('name')
+            if vmname in defined_nodes:
+                defined_nodes.remove( vmname )
+                node.matched == True
+
+            ret_nodes.append(node)
+
+        for node_name in defined_nodes:
+            ret_nodes.append( nodes[node_name] )
+
+        return ret_nodes
+
+    def show_nodes(self, extended=False):
+
+        nodes = self.hydrate_node_state(verbose=True)
+
+        if not nodes:
             logger.info( 'no template nodes defined, and no cloud nodes found' )
             return
 
         headers, headerfmt = nodes[0].disp_headers() if nodes else nonmember_nodes[0].disp_headers()
         print headerfmt % tuple(headers)
 
-        if nodes:
+        if self.name:
             print "Template Nodes:"
-            for node in nodes:
-                print headerfmt % tuple(node.disp_data())
+        else:
+            print "All cloud nodes:"
 
-        if nonmember_nodes:
-            print "Non-template nodes:"
-            for vm in nonmember_nodes:
-                print headerfmt % tuple(vm.disp_data())
-
+        for node in nodes:
+            print headerfmt % tuple(node.disp_data())
+            if extended:
+                print node.extended_data()
 
     def get_known_vms(self, machines):
 
@@ -184,10 +252,6 @@ class EC2Cloud(object):
             for i in r.instances:
                 ret.append(i)
         return ret
-
-    def show(self, nodes=None):
-        self.show_cloud()
-        self.show_nodes(nodes)
 
     def get_template_nodes(self):
         return self.template_nodes
@@ -238,18 +302,15 @@ class EC2Node(object):
     describe and control EC2 nodes within an EC2 cloud
     '''
 
-    def __init__(self, name="", instance_type="", image="",  username='', vm=None, cloud=None, security_groups=''):
+    def __init__(self, nodename="", instance_type="", image="",  username='', vm=None, cloud=None, security_groups=''):
 
-        if vm:
-            self._name      = vm.tags.get('name') or ""
-            self._image     = vm.image_id
-            self._instance_type     = vm.instance_type
-            self._vm = vm
-        else:
-            self._name      = name
-            self._image     = image
-            self._instance_type = instance_type
-            self._vm        = None
+        self.matched_to_template = False
+        self._hydrated = False
+
+        self._name      = nodename
+        self._image     = image
+        self._instance_type = instance_type
+        self._vm        = None
 
         self.security_groups = [sg.strip() for sg in security_groups.split(',')]
         self._username = username
@@ -261,6 +322,33 @@ class EC2Node(object):
     def __repr__(self):
         data = self.disp_data()
         return ",".join(str(datum) for datum in data)
+
+    def hydrate(self, vm):
+        ''' populate template node state from the cloud reservation ''' 
+        self._name      = vm.tags.get('name') or ""
+        self._image     = vm.image_id
+        self._instance_type     = vm.instance_type
+        self._vm = vm
+        self._hydrated = True
+
+    def unhydrate(self, vm):
+        ''' populate template node state from the cloud reservation ''' 
+        self._vm = None
+        self._hydrated = False
+        #TODO: set other params to template params
+
+    @property
+    def matched(self):
+        ''' hydrated node, does it match a node in the template definition? ''' 
+        return self.matched_to_template
+
+    @matched.setter
+    def matched(self, value):
+        self.matched_to_template = value
+
+    @property
+    def hydrated(self):
+        return self._hydrated
 
     @property
     def vm(self):
@@ -285,6 +373,13 @@ class EC2Node(object):
     @name.setter
     def name(self, value):
         self._name = value
+
+    @property
+    def clustername(self):
+        if self.hydrated:
+            return self._vm.tags.get('cluster')
+        else:
+            return '-'
 
     @property
     def instance_type(self):
@@ -346,13 +441,14 @@ class EC2Node(object):
                 self.cloud.conn().start_instances(instance_ids=[vm.id])
                 return
 
-        logger.info( 'starting node %s-%s' % (self._name, self) )
+        logger.info( 'starting node %s' % (self._name) )
 
         logger.debug( 'image=%s keypair=%s instance=%s' % (self._image, self.cloud.key, self._instance_type) )
 
         res = self.cloud.conn().run_instances(self._image, key_name=self.cloud.key, instance_type=self._instance_type)
         for inst in res.instances:
             inst.add_tag('name', self._name)
+            inst.add_tag('cluster', self.cloud.name)
 
     def stop(self):
 
@@ -397,4 +493,15 @@ class EC2Node(object):
             vals += ['not_started', '', '', '', '']
 
         return vals
+
+    def extended_data(self):
+        ret =   [
+                'hostname: %s' % (self.hostname or 'none'),
+                'image: %s' % self.image
+                ]
+
+        if self.vm:
+            ret.append('tags: %s' % ",".join( '%s=%s' % (k,v) for k,v in self._vm.tags.items()) )
+
+        return ret
 

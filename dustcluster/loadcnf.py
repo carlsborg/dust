@@ -62,7 +62,8 @@ def load_template(config_file):
 
         logger.info('loaded template %s with %s nodes' % (config_file, (len(sections)-1)))
     except Exception, ex:
-        logger.error('Error loding template : %s' % ex)
+        logger.error('Error loading template : %s' % ex)
+        logger.exception(ex)
         cloud = None
 
     return cloud

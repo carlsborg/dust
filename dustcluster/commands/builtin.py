@@ -14,21 +14,30 @@
 
 
 # export commands 
-commands  = ['show', 'start', 'stop', 'terminate']
+commands  = ['show', 'showex', 'start', 'stop', 'terminate']
 
 
-def show(cmdline, cluster, logger): 
+def showex(cmdline, cluster, logger):
     '''
-    show - Show all nodes
+    showex    - Show extended info on all nodes
 
     Retrieves state from the cloud provider.
     If a cluster template is loaded, show cluster member and non-member nodes separately.
-    '''    
+    '''
     cluster.invalidate_cache()
-    target_nodes = cluster.resolve_target_nodes(op='', target_node_name=cmdline)
-    if not target_nodes:
-        return
-    cluster.show(target_nodes)
+    cluster.show(extended=True)
+
+
+def show(cmdline, cluster, logger):
+    '''
+    show    - Show all nodes
+    show ex - Show all nodes with extended info
+
+    Retrieves state from the cloud provider.
+    If a cluster template is loaded, show cluster member and non-member nodes separately.
+    '''
+    cluster.invalidate_cache()
+    cluster.show()
 
 def start(cmdline, cluster, logger):
     '''   

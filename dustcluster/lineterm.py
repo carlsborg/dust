@@ -141,7 +141,7 @@ class ReceiveDemux(object):
 
 
         while self.state != 'shutdown':
-            r, w, e = select.select(self.chans, [], self.chans, 0.5)
+            r, w, e = select.select(self.chans, [], self.chans, 0.25)
             if r:
                 for achan in r:
                     self.handle_read(achan)

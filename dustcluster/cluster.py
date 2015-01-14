@@ -19,8 +19,9 @@ import fnmatch
 
 from copy import deepcopy
 
-from dustcluster import loadcnf
+from dustcluster import loadcnf_yaml
 from dustcluster.lineterm import LineTerm
+
 from dustcluster.util import setup_logger
 logger = setup_logger( __name__ )
 
@@ -31,6 +32,7 @@ class Cluster(object):
 
     def __init__(self):
         self.cloud = None
+        self.cloud_defaults = None
         self.lineterm = LineTerm()
         self.nodecache = None # invalidated on load template/start/stop/terminate
 
@@ -40,7 +42,7 @@ class Cluster(object):
 
     def load_template(self, config_file):
         ''' load a cluster template ''' 
-        self.cloud = loadcnf.load_template(config_file)
+        self.cloud = loadcnf_yaml.load_template(config_file)
         self.invalidate_cache()
 
     def load_default_keys(self, default_keypath):
@@ -86,7 +88,7 @@ class Cluster(object):
             given a target string, create a list of target nodes to operate on
         '''
         if not self.cloud:
-            logger.error('No cloud config loaded. See help load') 
+            logger.error('No cloud config or defaults loaded. See help load')
             return
 
         # target string can be a filter expression
@@ -100,10 +102,10 @@ class Cluster(object):
 
         # refresh state and identify template nodes
         if self.nodecache:
-            member_nodes, nonmember_nodes = self.nodecache
+            nodes = self.nodecache
         else:
-            member_nodes, nonmember_nodes = self.cloud.retrieve_node_state()
-            self.nodecache = (member_nodes, nonmember_nodes)
+            nodes = self.cloud.hydrate_node_state()
+            self.nodecache = nodes
 
         if op:
             if filterkey:
@@ -111,21 +113,21 @@ class Cluster(object):
             else:
                 logger.info( "invoking %s on all nodes" % op )
 
-        target_nodes  = self._filter(member_nodes, filterkey, filterval)
-        target_nodes += self._filter(nonmember_nodes, filterkey, filterval)
+        target_nodes  = self._filter(nodes, filterkey, filterval)
 
         if not target_nodes:
             logger.info( 'no nodes found that match filter %s=%s' % (filterkey, filterval) )
 
         return target_nodes
 
-    def show(self, target=None):
+    def show(self, target=None, extended=False):
         ''' print summary of cloud nodes to stdout '''
         if not self.cloud:
             logger.error('No cloud config loaded. See help load') 
             return
-        self.cloud.show(target)
 
+        self.cloud.show_cloud()
+        self.cloud.show_nodes(extended=extended)
 
     def running_nodes_from_target(self, target_str):
         '''
