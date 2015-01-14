@@ -70,9 +70,9 @@ aws_secret_access_key = YourSecretAccessKey
 
 Load a sample template
 
-> dust$ load samples/demo.cnf
+> dust$ load samples/democloud.yaml
 
-> loaded template samples/demo.cnf with 1+3 nodes
+> loaded template samples/democloud.yaml with 1+3 nodes
 
 > dust$ show 
 
