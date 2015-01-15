@@ -21,31 +21,34 @@ Running dust.py drops to a shell that allows you to:
 
 ### Define a cluster of named nodes and idempotently sync it to EC2
 
-sample.cnf
+sample.yaml
 
 ```
-@cloud
-provider=ec2
-name=democloud
-region=eu-west-1
-username=ubuntu
-key=mykey
-keyfile=/path/to/mykey.pem
+defaults:
+  provider:         ec2
+  region:           eu-west-1
+  boto_profile:     Dust
+  login_username:   ubuntu
+  key:              mykey
+  keyfile:          /path/to/mykey.pem
 
-@master
-instance_type=m3.medium
-image=ami-896c96fe
+cloud:
+  name: democloud
+  nodes:
+    - nodename:         master
+      instance_type:    m3.medium,
+      image:            ami-896c96fe
 
-@worker0
-instance_type=t2.small 
-image=ami-3eb46b49
+    - nodename:         worker0
+      instance_type:    m3.medium
+      image:            ami-3eb46b49
 
-@worker1
-instance_type=t2.small 
-image=ami-3eb46b49
+    - nodename:         worker1
+      instance_type:    m3.medium
+      image:            ami-3eb46b49
 ```
 
-> dust$ load sample.cnf
+> dust$ load sample.yaml
 
 > dust$ show
 
