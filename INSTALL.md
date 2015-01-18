@@ -68,6 +68,10 @@ aws_secret_access_key = YourSecretAccessKey
 
 > $python dust.py 
 
+Examine the sample template, uncomment the boto_profile if you added one above.
+
+> $vim samples/democloud.yaml
+
 Load a sample template
 
 > dust$ load samples/democloud.yaml
