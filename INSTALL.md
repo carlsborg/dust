@@ -27,9 +27,9 @@ Tested on: Debian 7, Python 2.7.3
 
 Log into AWS Management Console-> User name on top right-> Security Credentials. Then,
 
-Create Access key -> Show Access key or Download access key. 
-Or
-Create an IAM user and then create an access key for the user. 
+Create Access key -> Show Access key or Download access key 
+
+(Optionally, fist create an IAM user and then create and use theaccess key for the new user, remember to do a "Attach user policy"->Adminstrator or similar for this user)  
 
 AWS credentials look like this:
 
@@ -40,7 +40,7 @@ AWS credentials look like this:
 
 ####2. Configure boto:
 
-Paste the credentials in a boto config 
+Paste the credentials in a boto config
 
 > vim  ~/.boto
 
