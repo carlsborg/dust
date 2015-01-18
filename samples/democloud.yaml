@@ -20,12 +20,12 @@
 ############## ec2 and node defaults
 
 defaults:
-  provider:              ec2
-  region:                eu-west-1
-  boto_profile:          Dust
-  login_username:        ubuntu
-
-############# cloud template
+  provider:         ec2
+  region:           eu-west-1
+  #boto_profile:     Dust
+  login_username:   ubuntu
+  #key:              mykey
+  #keyfile:          /path/to/mykey.pem
 
 cloud:
 
@@ -34,16 +34,13 @@ cloud:
   nodes:
     - nodename:         master
       instance_type:    m3.medium,
-      security_groups:  dustsample,nfsserver
       image:            ami-896c96fe
 
     - nodename:         worker0
       instance_type:    m3.medium
-      security_groups:  dustsample,nfsserver
       image:            ami-3eb46b49
 
     - nodename:         worker1
       instance_type:    m3.medium
-      security_groups:  dustsample,nfsserver
       image:            ami-3eb46b49
 
