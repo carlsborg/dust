@@ -242,7 +242,7 @@ class SSHTerm(object):
         hostname = self.node.hostname
         username = self.node.username
 
-        logger.debug('hostname=%s, username=%s, key=%s' % (hostname, username, self.keyfile))
+        logger.debug('hostname=[%s], username=[%s], key=[%s]' % (hostname, username, self.keyfile))
         if not self.is_connected():
             try:
                 self.connect(hostname, username)
@@ -256,8 +256,8 @@ class SSHTerm(object):
                 raise
 
     def disable_echo(self, auxcmd=''):
-        logger.info( '%s: disabling echo' % self.node.name )
-        cmd = "stty -echo; export PS1='' "
+        logger.debug( '%s: disabling echo' % self.node.name )
+        cmd = "stty -echo; export PS1=''; # reverting to line buffered mode"
         self.command(cmd + auxcmd)
         self.echo = False
 
@@ -325,7 +325,7 @@ class SSHTerm(object):
                 logger.exception('exception in raw shell:')
 
         if ctrlout:
-            logger.info( '%s: switching back to line buffered commands' % self.node.name )
+            logger.debug( '%s: switching back to line buffered commands' % self.node.name )
             self.disable_echo()
 
         self.revert_tty()
@@ -366,7 +366,7 @@ class SSHTerm(object):
 
         private_key_path = self.keyfile 
 
-        logger.info('ssh login to %s' % hostname)
+        logger.info('ssh login to host=[%s] keyfile=[%s]' % (hostname, private_key_path))
 
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.connect((hostname, port))
@@ -413,6 +413,7 @@ class LineTerm(object):
         ''' send a command to an interactive ssh shell or enter a raw shell input loop.
             in both cases log in if not logged in. 
         '''
+
         term = None
         try:
             rawshell= False if cmd else True
@@ -439,6 +440,7 @@ class LineTerm(object):
          '*** Entering raw shell, press ctrl-c thrice to return to cluster shell. Press Enter to continue.***')
 
         raw_input()
+
         self.command(keyfile, node, cmd=None)
 
     def put(self, keyfile, node, srcfile, destfile=None):

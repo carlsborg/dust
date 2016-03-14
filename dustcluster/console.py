@@ -14,15 +14,14 @@
 Dust command loop
 '''
 
-import time
 import sys
 import socket
 import os
 import readline
 import logging
+import ConfigParser
 
 from collections import defaultdict
-from pkgutil import walk_packages
 from cmd import Cmd
 
 import paramiko
@@ -42,29 +41,48 @@ class Console(Cmd):
     dustintro  = "Dust cluster shell, version %s. Type ? for help." % __version__
     default_keypath = os.path.join(os.getcwd(), 'keys')
 
-    history_file = '.dust_history'
+    user_dir         = os.path.expanduser('~')
+    history_file     = os.path.join(user_dir, '.dustcluster/cmd_history')
+    dust_config_file = os.path.join(user_dir, '.dustcluster/config')
+    aws_config_file  = os.path.join(user_dir, '.aws/config')
 
     def __init__(self):
 
+        util.intro()
+
+        # read config/credentials 
+        config_data = {}
+        try:
+            if os.path.exists(self.dust_config_file):
+                logger.info("Reading credentials from [%s]" % self.dust_config_file)
+                config_data = self.read_config(self.dust_config_file)
+            elif os.path.exists(self.aws_config_file):
+                logger.info("Reading credentials from [%s]" % self.aws_config_file)
+                config_data = self.read_config(self.aws_config_file)
+            else:
+                logger.info("Welcome to dustcluster, creating config file:")
+                config_data = self.ask_and_write_credentials(self.dust_config_file)
+        except Exception, e:
+            logger.error("Error getting config/credentials. Cannot continue.")
+            raise
+
         # load history
         try:
-            readline.read_history_file(self.history_file)
+            if os.path.exists(self.history_file):
+                readline.read_history_file(self.history_file)
         except IOError:
-            pass
+            logger.warning("Error reading history file. No command history available.")
 
         atexit.register(readline.write_history_file, self.history_file)
 
         Cmd.__init__(self)
 
-        self.cluster = Cluster()
+        self.cluster = Cluster(config_data)
         self.commands = {}  # { cmd : (helpstr, module) }
-        util.intro()
-        logger.info(self.dustintro)
-
         # startup
-        self.load_commands()
-
-        default_config = 'default.yaml'
+        self.cluster.load_commands()
+    
+        default_config = 'dust.yaml'
         if os.path.exists(default_config):
             logger.info('Found %s, loading template' % default_config)
             self.cluster.load_template(default_config)
@@ -73,43 +91,49 @@ class Console(Cmd):
         self.exit_flag = False
         self.cluster.lineterm.set_refresh_callback(self.redisplay)
 
+        self.cluster.handle_command("loglevel", "info")
+        logger.info(self.dustintro)
+
+    def read_config(self, config_file):
+
+        parser = ConfigParser.ConfigParser()
+        parser.read(config_file)
+
+        config_data = parser.defaults()
+        
+        if not config_data:
+            config_data = dict(parser.items("default"))
+
+        return config_data
+
+    def ask_and_write_credentials(self, config_file):
+
+        acc_key_id  = raw_input("Enter aws_access_key_id:").strip()
+        acc_key     = raw_input("Enter aws_secret_access_key:").strip()
+        region      = raw_input("Enter default region [us-east-1]:").strip() or "us-east-1"
+
+        config_data = {}
+        config_data["aws_access_key_id"] = acc_key_id
+        config_data["aws_secret_access_key"] = acc_key
+        config_data["region"] = region
+
+        parser = ConfigParser.ConfigParser(config_data)
+
+        logger.info("Writing credentials to [%s] with user read/write permissions (0600)" % config_file)
+
+        with open(config_file, 'wb') as fh:
+            parser.write(fh)
+
+        os.chmod(config_file, stat.S_IRUSR | stat.S_IWUSR)
+
+        return parser.defaults()
+
     def redisplay(self):
         ''' refresh the prompt '''
         sys.stdout.write('\n\r' + self.prompt)
         sys.stdout.write(readline.get_line_buffer())
         sys.stdout.flush()
 
-    def load_commands(self):
-        '''
-        dynamically import modules from under dustcluster.commands, and discover commands 
-        '''
-
-        start_time = time.time()
-
-        cmds = walk_packages( commands.__path__, commands.__name__ + '.')
-        cmdmods  = [cmd[1] for cmd in cmds]
-        logger.debug( '... loading commands from %s modules' % len(cmdmods))
-        logger.debug(list(cmdmods))
-
-        # import commands and add them to the commands map
-        for cmdmod in cmdmods:
-            newmod = __import__(cmdmod, fromlist=['commands'])
-
-            for cmdname in newmod.commands:
-                cmdfunc =  getattr(newmod, cmdname, 'None')
-                if not cmdfunc:
-                    logger.error('exported command %s not found in %s' % (cmdname, newmod))
-                    continue
-                self.commands[cmdname] = (cmdfunc.__doc__, newmod)
-
-        end_time = time.time()
-
-        if self.commands:
-            logger.debug('... loaded %s commands from %s in %.3f sec:' % \
-                            (len(self.commands), commands.__name__, (end_time-start_time))  )
-
-        for cmd, (shelp, cmdmod) in self.commands.items():
-            logger.debug( '%s %s' % (cmdmod.__name__, shelp.split('\n')[1]))
 
     def emptyline(self):
         pass
@@ -120,9 +144,11 @@ class Console(Cmd):
         Modified from base class.
         '''
 
+        commands = self.cluster.get_commands()
+
         if args:
-            if args in self.commands:
-                docstr, _ = self.commands.get(args)
+            if args in commands:
+                docstr, _ = commands.get(args)
                 print docstr
                 return
             return Cmd.do_help(self, args)
@@ -146,7 +172,7 @@ class Console(Cmd):
 
         # show help from drop-in commands
         modcommands = defaultdict(list)
-        for cmd, (docstr, mod) in self.commands.items():
+        for cmd, (docstr, mod) in commands.items():
             modcommands[mod].append( (cmd, docstr) )
 
         for mod, cmds in modcommands.iteritems():
@@ -176,18 +202,13 @@ class Console(Cmd):
 
     def default(self, line):
 
-        # handle unrecognized command
+        # handle a cluster command
         cmd, arg, line = self.parseline(line)
-        cmddata = self.commands.get(cmd)
-        if cmddata:
-            _ , cmdmod = cmddata
-            func = getattr(cmdmod,  cmd)
-            func(arg, self.cluster, logger)
-        else:
-
+        if not self.cluster.handle_command(cmd, arg):
             # not handled? try system shell
-            logger.info( 'dustcluster: [%s] trying system shell...\n' % line )
+            logger.info( 'dustcluster: [%s] unrecognized, trying system shell...\n' % line )
             os.system(line)
+
         return
 
     def parseline(self, line):
@@ -204,41 +225,6 @@ class Console(Cmd):
         ret = Cmd.parseline(self, line)
         return ret
 
-    def do_load(self, configfile):
-        '''
-        load file - load a cluster template definition file
-
-        Arguments:
-        file        --- path to the template definition file
-
-        Note: 
-        If a template file called default.cnf exists in the current working directory, it gets loaded on startup.
-        If key, keyfile are not specified, a default key in ./keys/default.key is created or re-used.
-
-        Example:
-        load samples/ec2sample.cnf
-        '''
-
-        self.cluster.load_template(configfile)
-        if self.cluster.cloud:
-            self.cluster.load_default_keys(self.default_keypath)
-
-
-    def do_unload(self, configfile):
-        '''
-        unload  - unload the cloud definition, keeping the cloud defaults.
-
-        Note:
-        This shows you all the nodes on that region and account id.
-        Used with showex and tag, can be used to add existing nodes to a cloud.
-
-        Example:
-        unload
-        '''
-
-        #TODO
-        print 'not implemented, yet'
-
 
     def do_exit(self, _):
         '''
@@ -254,31 +240,4 @@ class Console(Cmd):
         EOF/Ctrl D - exit dust shell
         '''
         return self.do_exit(line)
-
-    def do_loglevel(self, line):
-        '''
-        loglevel [info|debug] - turn up/down the logging to debug/info
-        '''
-
-        level = line.strip().lower()
-
-        if level.lower() == 'info':
-            self.set_loglevel(logging.INFO)
-            logger.info('switched log level to INFO')
-        elif level.lower() == 'debug':
-            self.set_loglevel(logging.DEBUG)
-            logger.info('switched log level to DEBUG')
-        else:
-            logger.info('undefined log level %s' % line)
-
-    def set_loglevel(self, level):
-
-        logging.getLogger().setLevel(level)
-        for mname, mlogger in logging.Logger.manager.loggerDict.iteritems():
-            if getattr(mlogger, 'setLevel', None):
-                logger.debug('setting loglevel on %s' % mname)
-                mlogger.setLevel(level)
-
-        plogger = paramiko.util.logging.getLogger()
-        plogger.setLevel(level)
 

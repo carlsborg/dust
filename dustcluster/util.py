@@ -17,10 +17,8 @@ import logging
 def setup_logger(sname):
 
     logger = logging.getLogger(sname)
-    logger.setLevel(logging.INFO)
 
     console = logging.StreamHandler()
-    console.setLevel(logging.INFO)
 
     formatter = logging.Formatter('\rdust:%(asctime)s | %(message)s')
     console.setFormatter(formatter)

@@ -14,7 +14,7 @@
 import os
 import re
 import ConfigParser
-from dustcluster.EC2 import EC2Cloud, EC2Node
+from dustcluster.EC2 import EC2Cluster, EC2Node
 
 from dustcluster.util import setup_logger
 logger = setup_logger( __name__ )
@@ -33,6 +33,7 @@ def load_template(config_file):
     try:
         config = DustConfigParser()
         config.read(config_file)
+        text_conf = config.read(config_file)
 
         if not os.path.exists(config_file) or not config:
             raise Exception('Could not load config file %s' % config_file)
@@ -47,7 +48,7 @@ def load_template(config_file):
             raise Exception('load_template: missing or unknown cloud.provider specified - %s' %  provider)
 
         # create cloud
-        cloud = EC2Cloud(**cloudopts)
+        cloud = EC2Cluster(**cloudopts)
 
         sections  = config.sections()
         for section in sections:
@@ -67,6 +68,10 @@ def load_template(config_file):
         cloud = None
 
     return cloud
+
+
+
+
 
 def test():
     cloud = load_template('sample.ec2.cnf')

@@ -10,6 +10,7 @@
 # FOR A PARTICULAR PURPOSE. See the GNU Affero GPL for more details.
 #
 
+import yaml
 
 '''
 dust command for invoking ssh operations on a set of nodes, or entering a raw ssh shell to a single node 
@@ -56,13 +57,17 @@ def atssh(cmdline, cluster, logger):
         if sshcmd:
             logger.info( 'running [%s] over ssh on nodes: %s' % (sshcmd,  str([node.name for node in target_nodes])) )
             for node in target_nodes:
-                cluster.lineterm.command(cluster.cloud.keyfile, node, sshcmd)
+                keyfile = _get_key_file(node, cluster, logger)
+                if keyfile:
+                    cluster.lineterm.command(keyfile, node, sshcmd)
         else:
             if len(target_nodes) > 1: 
                 logger.info( 'Raw shell support is for single host targets only. See help atssh' )
                 return
 
-            cluster.lineterm.shell(cluster.cloud.keyfile, target_nodes[0])
+            keyfile = _get_key_file(target_nodes[0], cluster, logger)
+            if keyfile:
+                cluster.lineterm.shell(keyfile, target_nodes[0])
 
     except Exception, ex:
         logger.exception( ex )
@@ -71,4 +76,52 @@ def atssh(cmdline, cluster, logger):
     if not is_error:
         logger.info('ok')
 
+
+def _get_key_file(node, cluster, logger):
+    '''
+    if node has a keyfile property return it, else find a mapped key 
+    '''
+
+    if node.keyfile: 
+        return node.keyfile
+
+    if not node.key:
+        logger.error("No keyfile and no key configured for this node.")
+        return ""
+
+    keyfile = _get_key_location(node.key, cluster, logger)
+    if not keyfile:
+        logger.error("No keyfile mapping found for key [%s]. This mapping should be in ~./dustcluster/userdata or the template" 
+                        %  node.key)
+        return ""
+
+    return keyfile
+
+
+def _get_key_location(key, cluster, logger):
+    ''' lookup the commandstate keymapping cache for key to file mapping
+        if it isn't there, create an entry for this key in ~./dustcluster/userdata
+        and update the cache'''
+
+    ret = {}
+
+    state_key = 'atssh-keymap'
+
+    keymap = cluster.get_user_data('ec2-key-mapping') or {}
+
+    dirty = False
+    keyfile = keymap.get("%s#%s" % (cluster.cloud.region,key))
+    if keyfile:
+        ret[key] = keyfile
+    else:
+        keypath = raw_input("Location of key %s in region %s:" % (key, cluster.cloud.region))
+        keymap[str(cluster.cloud.region + '#' + key)] = keypath
+        dirty = True
+        ret[key] = keypath
+
+    if dirty:
+        cluster.update_user_data('ec2-key-mapping', keymap)
+        logger.info("Updating new key mappings to userdata [%s]" % cluster.user_data_file)
+
+    return ret[key]
 

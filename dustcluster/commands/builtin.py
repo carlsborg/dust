@@ -12,32 +12,51 @@
 
 ''' dust commands to start/stop/terminate nodes ''' 
 
-
 # export commands 
-commands  = ['show', 'showex', 'start', 'stop', 'terminate']
+commands  = ['show', 'showex', 'refresh', 'start', 'stop', 'terminate', 'region']
 
 
 def showex(cmdline, cluster, logger):
     '''
-    showex    - Show extended info on all nodes
+    showex  [filter]  - Show extended info on all nodes or filtered nodes
 
     Retrieves state from the cloud provider.
     If a cluster template is loaded, show cluster member and non-member nodes separately.
     '''
-    cluster.invalidate_cache()
-    cluster.show(extended=True)
-
+    _show(cmdline, cluster, logger, True)
 
 def show(cmdline, cluster, logger):
     '''
-    show    - Show all nodes
-    show ex - Show all nodes with extended info
+    show  [filter]  - Show all nodes or filtered nodes
 
     Retrieves state from the cloud provider.
     If a cluster template is loaded, show cluster member and non-member nodes separately.
     '''
+    _show(cmdline, cluster, logger, False)
+
+def _show(cmdline, cluster, logger, extended=False):
+    try:
+
+        target_nodes = []
+        target_nodes = get_target_nodes(logger, cluster, cmdline)
+        if not target_nodes:
+            return
+
+        cluster.show(target_nodes, extended=extended)
+
+    except Exception, e:
+        logger.exception('Error: %s' % e)
+        return
+
+def refresh(cmdline, cluster, logger):
+    '''
+    refresh  [filter]  - refresh from cloud and call show
+    
+    Note that some operations (start/stop/etc) cause a refresh to occur on the next show.
+    '''
+
     cluster.invalidate_cache()
-    cluster.show()
+    _show(cmdline, cluster, logger, False)
 
 def start(cmdline, cluster, logger):
     '''   
@@ -54,7 +73,34 @@ def start(cmdline, cluster, logger):
     start worker[0-10]
     stop worker*
     '''    
-    operation(logger, cluster, 'start', cmdline)
+
+    try:
+
+        target_nodes = get_target_nodes(logger, cluster, cmdline)
+
+        if not target_nodes:
+            logger.info('no target nodes to operate on')
+            return
+
+        for node in target_nodes:
+
+            if not node.hydrated and not node.key:
+                logger.info("No key name configured for this node in the template. Need a key name to launch a node.")
+                keyname = raw_input("Keyname [Enter to use dustcluster default]:")
+                if keyname:
+                    node.key = keyname
+                else:
+                    node.key, keyfile = cluster.get_default_key()
+                    logger.info("Using default key [%s] in [%s]" % (node.key, keyfile)) 
+
+            node.start()
+
+    except Exception, e:
+        logger.exception('Error: %s' % e)
+        return
+
+    logger.info( 'ok' )
+
     cluster.invalidate_cache()
 
 def stop(cmdline, cluster, logger):
@@ -98,15 +144,10 @@ def operation(logger, cluster, op, target_node_str=None, confirm=False):
 
     try:
 
-        target_nodes = cluster.resolve_target_nodes(op, target_node_str)
+        target_nodes = get_target_nodes(logger, cluster, target_node_str)
 
         if not target_nodes:
-            return
-
-        target_nodes = [node for node in target_nodes if node.state != 'terminated']
-
-        if not target_nodes:
-            logger.info('not invoking operations on terminated nodes')
+            logger.info('no target nodes to operate on')
             return
 
         if confirm:
@@ -129,4 +170,13 @@ def operation(logger, cluster, op, target_node_str=None, confirm=False):
         return
 
     logger.info( 'ok' )
+
+
+def get_target_nodes(logger, cluster, target_node_str=None):
+
+    target_nodes = cluster.resolve_target_nodes(op='show', target_node_name=target_node_str)
+
+    target_nodes = [node for node in target_nodes if node.state != 'terminated']
+
+    return target_nodes
 
