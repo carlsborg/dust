@@ -1,54 +1,106 @@
 dust
 ====
 
-Dust is an ssh cluster shell for EC2
+DustCluster is an ssh cluster shell for EC2
 
 Status:
 * Tested/known to work on Linux only (Debian, Ubuntu, CentOS)
 * Developed/tested with Python 2.7
-* Currently, this is pre-alpha/head work in progress
+* Currently, this is alpha/work in progress
 
 [Installation and quick start](INSTALL.md)
 
 ## Rationale
 
-Dust is an ssh cluster shell primarily useful for development, prototyping, one-off configuration of (usually ephemeral) EC2 clusters. Suitable for small clusters, maybe 10 nodes.
-
-The underlying philosophy is that it should be simple to setup a cluster via config, and manage it from the command line; any cloud configuration tasks that would require complex command line options are better done via drop-in python dust commands; and any repeatable OS configuration tasks are better done by invoking a configuration management tool like fabric/puppet/ansible, possibly via a python dust command.
+DustCluster is an ssh cluster shell primarily useful for development, prototyping, one-off configuration of (usually ephemeral) EC2 clusters. 
+Can be useful when developing custom data engineering stacks, maybe 10 nodes at most.
 
 ## Usage
-Running dust.py drops to a shell that allows you to: 
 
-### Define a cluster of named nodes and idempotently sync it to EC2
+### Ssh into and control existing EC2 clusters
+
+Drop into a dust shell, and show all the nodes in the current region 
+
+> dust$ show
+
+```
+Name         Instance     State        ID         ext_IP          int_IP         
+
+             t2.nano      running      i-c8cbad4b 52.90.67.41     172.31.60.216  
+             t2.nano      running      i-e6d4b265 52.90.136.102   172.31.61.174  
+             t2.nano      running      i-1bd4b298 54.209.17.39    172.31.52.216  
+             t2.nano      running      i-72caacf1 52.91.104.162   172.31.58.249  
+             t2.nano      running      i-07d5b384 52.91.240.38    172.31.59.61
+```
+
+Or show with details:
+
+> dust$ showex
+
+```
+Name         Instance     State        ID         ext_IP          int_IP         
+
+             t2.nano      running      i-c8cbad4b 52.90.67.41     172.31.60.216  
+              image : ami-8fcee4e5
+              hostname : ec2-52-90-67-41.compute-1.amazonaws.com
+              key : useast1_dustcluster
+              DNS : ec2-52-90-67-41.compute-1.amazonaws.com
+              tags : cluster=nano,name=node0
+
+            .. etc..                   
+```
+
+Use filters to show/start/stop nodes:
+
+> dust$ show state=running
+> dust$ stop id=i-e6d4b265
+
+Filter by tag:
+
+> dust$ showex tags=name:node*
+
+Select a cluster to work with:
+
+> dust$ use filter tags=name:node*
+
+This selects the node with the tag name=node*, and saves down a template so that you can name nodes and address them 
+by a friendly name (as you would in sshconfig).
+
+Select all nodes again:
+
+> dust$ use region us-east-1
+
+
+### Start a new cluster
+
+Optionally there is support to sync a very minimal cluster spec to the cloud. (You can write stateful commands to use
+CloudFormation or Troposhpere for more elaborate specs.)
 
 sample.yaml
 
 ```
-defaults:
-  provider:         ec2
-  region:           eu-west-1
-  boto_profile:     Dust
-  login_username:   ubuntu
-  key:              mykey
-  keyfile:          /path/to/mykey.pem
-
 cloud:
-  name: democloud
-  nodes:
-    - nodename:         master
-      instance_type:    m3.medium,
-      image:            ami-896c96fe
+  provider: ec2 
+  region: us-east-1
 
-    - nodename:         worker0
-      instance_type:    m3.medium
-      image:            ami-3eb46b49
+cluster:
+  name: nano2
 
-    - nodename:         worker1
-      instance_type:    m3.medium
-      image:            ami-3eb46b49
+nodes:
+- image: ami-60b6c60a
+  instance_type: t2.nano
+  nodename: worker1
+  username: ec2-user
+  key: ec2dust
+
+- image: ami-60b6c60a
+  instance_type: t2.nano
+  nodename: worker2
+  username: ec2-user
+  key: ec2dust
 ```
 
-> dust$ load sample.yaml
+> dust$ use template sample.yaml
 
 > dust$ show
 
@@ -66,14 +118,13 @@ Template Nodes:
 
 > dust$ start
 
-> dust$ show
+> dust$ refresh
 
 The nodes should be in the pending state, and the ID, IP and DNS fields populated.
 
 **Note on authentication**:
 
-Only key based authentication is supported. If key and keyfile are not specified in the config above, a new key pair is created in ./keys/clustername.pem and used for starting nodes.
-
+Only key based authentication is supported. You can specify the key or keyfile in the template under each node.
 
 ### Target a set of nodes with wildcards and filter expressions
 
@@ -93,6 +144,8 @@ with filter expressions:
 
 > dust$ start state=stop*       # filters can have wildcards 
 
+> dust$ stop tags=env:dev
+
 The general form for node opertions is
 
 > start/stop/terminate [target]
@@ -105,6 +158,10 @@ No target implies all nodes.
 Execute 'uptime' over ssh on a set of nodes with:
 
 > dust$ @worker\* uptime
+
+Execute 'uptime' over ssh on all nodes with tag env=dev
+
+> dust$ @tags=env:dev uptime
 
 The general form for ssh is:
 
@@ -241,7 +298,7 @@ When done, log out of the ssh shell ($exit) or keep it going in the background (
 buffered commands or raw shell mode.
 
 
-### Add custom functionality with drop-in python commands 
+### Add custom functionality with stateful drop-in python commands 
 
 To add functionality, drop in a python file implementing new commands into dustcluster/commands. 
 
@@ -251,5 +308,4 @@ Type help or ? inside the dust shell for more
 
 Unrecognized commands drop to the system shell, so you can edit files, run configuration management tools locally 
 from the same prompt.
-
 
