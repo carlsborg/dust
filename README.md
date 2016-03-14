@@ -53,6 +53,7 @@ Name         Instance     State        ID         ext_IP          int_IP
 Use filters to show/start/stop nodes:
 
 > dust$ show state=running
+
 > dust$ stop id=i-e6d4b265
 
 Filter by tag:
@@ -63,7 +64,7 @@ Select a cluster to work with:
 
 > dust$ use filter tags=name:node*
 
-This selects the node with the tag name=node*, and saves down a template so that you can name nodes and address them 
+This selects nodes with the tag name=node*, and saves down a template so that you can name nodes and address them 
 by a friendly name (as you would in sshconfig).
 
 Select all nodes again:
