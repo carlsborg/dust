@@ -257,7 +257,7 @@ class SSHTerm(object):
 
     def disable_echo(self, auxcmd=''):
         logger.debug( '%s: disabling echo' % self.node.name )
-        cmd = "stty -echo; export PS1=''; # reverting to line buffered mode"
+        cmd = "stty -echo; export PS1=''"
         self.command(cmd + auxcmd)
         self.echo = False
 
