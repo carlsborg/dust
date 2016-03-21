@@ -1,0 +1,6 @@
+#! /bin/bash
+# wrapper shell script to invoke dust in dev
+
+export PYTHONPATH=.:$PYTHONPATH
+./bin/dust
+
