@@ -32,7 +32,7 @@ import atexit
 from dustcluster import util
 logger = util.setup_logger( __name__ )
 
-__version__ = '0.01 head/unstable'
+__version__ = '0.01'
 
 class Console(Cmd):
     ''' command line tool to control a cloud cluster '''
