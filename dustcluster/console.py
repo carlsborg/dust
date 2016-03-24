@@ -42,6 +42,7 @@ class Console(Cmd):
     default_keypath = os.path.join(os.getcwd(), 'keys')
 
     user_dir         = os.path.expanduser('~')
+    dust_dir         = os.path.join(user_dir, '.dustcluster')
     history_file     = os.path.join(user_dir, '.dustcluster/cmd_history')
     dust_config_file = os.path.join(user_dir, '.dustcluster/config')
     aws_config_file  = os.path.join(user_dir, '.aws/config')
@@ -73,6 +74,10 @@ class Console(Cmd):
         try:
             if os.path.exists(self.history_file):
                 readline.read_history_file(self.history_file)
+            else:
+                if not os.path.exists(self.dust_dir):
+                    os.makedirs(self.dust_dir)
+
         except IOError:
             logger.warning("Error reading history file. No command history available.")
 
