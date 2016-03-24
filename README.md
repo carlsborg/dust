@@ -62,20 +62,26 @@ Filter by tag:
 
 Select a cluster to work with:
 
+The 'use' command comes with three flavours : region, filter, and template; allowing you to select all nodes from a region, 
+or using a filter, or using a template spec respectively.
+
 > dust$ use filter tags=name:node*
 
 This selects nodes with the tag name=node*, and saves down a template so that you can name nodes and address them 
 by a friendly name (as you would in sshconfig).
 
-Select all nodes again:
+Edit and then use the saved template with:
 
-> dust$ use region us-east-1
+> dust$ use template mycluster.yaml
 
+Use all nodes in a region:
+
+> dust$ use region us-west-1
 
 ### Start a new cluster
 
 Optionally there is support to sync a very minimal cluster spec to the cloud. (You can write stateful commands to use
-CloudFormation or Troposhpere for more elaborate specs.)
+CloudFormation or Troposphere for more elaborate specs.)
 
 sample.yaml
 
@@ -129,6 +135,9 @@ Only key based authentication is supported. You can specify the key or keyfile i
 
 ### Target a set of nodes with wildcards and filter expressions
 
+Once you have loaded a template with "$use template", nodes now have 
+friendly names and you can use nodename wildcards as a target:
+
 The basic node operations are start/stop/terminate 
 
 with wildcards:
@@ -156,7 +165,7 @@ No target implies all nodes.
 
 ### Cluster ssh to a set of nodes
 
-Execute 'uptime' over ssh on a set of nodes with:
+Execute 'uptime' over ssh on a set of nodes named worker\* with:
 
 > dust$ @worker\* uptime
 

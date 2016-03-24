@@ -54,14 +54,17 @@ class Console(Cmd):
         config_data = {}
         try:
             if os.path.exists(self.dust_config_file):
-                logger.info("Reading credentials from [%s]" % self.dust_config_file)
+                logger.debug("Reading dust config from [%s]" % self.dust_config_file)
                 config_data = self.read_config(self.dust_config_file)
-            elif os.path.exists(self.aws_config_file):
-                logger.info("Reading credentials from [%s]" % self.aws_config_file)
-                config_data = self.read_config(self.aws_config_file)
-            else:
+
+            if not config_data.get('aws_access_key_id') and os.path.exists(self.aws_config_file):
+                logger.debug("Reading aws credentials from [%s]" % self.aws_config_file)
+                config_data.update(self.read_config(self.aws_config_file))
+
+            if not config_data.get('aws_access_key_id'):
                 logger.info("Welcome to dustcluster, creating config file:")
                 config_data = self.ask_and_write_credentials(self.dust_config_file)
+
         except Exception, e:
             logger.error("Error getting config/credentials. Cannot continue.")
             raise
@@ -91,7 +94,7 @@ class Console(Cmd):
         self.exit_flag = False
         self.cluster.lineterm.set_refresh_callback(self.redisplay)
 
-        self.cluster.handle_command("loglevel", "info")
+        self.cluster.handle_command('loglevel',  config_data.get('loglevel') or 'info')
         logger.info(self.dustintro)
 
     def read_config(self, config_file):
