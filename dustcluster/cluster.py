@@ -308,13 +308,20 @@ class Cluster(object):
 
         if filterkey == "tags":
 
-            kv = filterval.split(':')
-            if len(kv) != 2:
+            fkey = ""
+            fval = ""
+
+            pos = filterval.rfind(':')
+            if pos:
+                fval = filterval[pos+1:]
+                fkey = filterval[:pos]
+
+                if fkey[0] == '"' and fkey[-1] == '"':
+                    fkey = fkey[1:-1]
+
+            if not fkey and not fval:
                 logger.error("Bad filter. Use tags=key:value, wildcards allowed on key, value.")
                 return []
-
-            fkey = kv[0]
-            fval = kv[1]
 
             for node in nodes:
                 if self._filter_tags(node.tags, fkey, fval):
@@ -339,13 +346,17 @@ class Cluster(object):
     def resolve_cluster_nodes(self):
         ''' return a list of cloud nodes that match the cluster filter'''
 
+        startColorGreen = "\033[0;32;40m"
+        endColor        = "\033[0m"
+
+
         # refresh nodes state from cloud
         if self.nodecache:
-            logger.debug("resolve_target_nodes: found %d nodes in node cache" % len(self.nodecache))
+            logger.info("Retrieved [%d] nodes %sfrom cache%s" % (len(self.nodecache), startColorGreen, endColor))
             nodes = self.nodecache
         else:
             nodes = self.cloud.refresh()
-            logger.debug("resolve_target_nodes: got %d nodes from cloud provider" % len(nodes))
+            logger.info("Retrieved [%d] nodes %sfrom cloud provider%s" % (len(nodes), startColorGreen, endColor))
             self.nodecache = nodes
 
         # filter by cluster filter

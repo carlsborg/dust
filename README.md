@@ -74,6 +74,8 @@ Edit and then use the saved template with:
 
 > dust$ use template mycluster.yaml
 
+Now you can perform cluster operations using names like worker1, worker2, etc.
+
 Use all nodes in a region:
 
 > dust$ use region us-west-1

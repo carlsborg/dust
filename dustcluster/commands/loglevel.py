@@ -12,12 +12,15 @@
 
 import logging
 import paramiko
+import boto
 
 ''' dust commands to set log levels on all module loggers ''' 
 
 
 # export commands 
 commands  = ['loglevel']
+
+boto.set_stream_logger('boto', logging.DEBUG)
 
 def loglevel(cmdline, cluster, logger):
     '''

@@ -10,9 +10,9 @@
 # FOR A PARTICULAR PURPOSE. See the GNU Affero GPL for more details.
 #
 
-''' dust commands to start/stop/terminate nodes ''' 
+''' dust commands to start/stop/terminate nodes '''
 
-# export commands 
+# export commands
 commands  = ['show', 'showex', 'refresh', 'start', 'stop', 'terminate', 'region']
 
 
@@ -20,8 +20,8 @@ def showex(cmdline, cluster, logger):
     '''
     showex  [filter]  - Show extended info on all nodes or filtered nodes
 
-    Retrieves state from the cloud provider.
-    If a cluster template is loaded, show cluster member and non-member nodes separately.
+    Show node data from in memory cache. Use $refresh to update cache.  
+    Shows only nodes selected by the use command, if any.
     '''
     _show(cmdline, cluster, logger, True)
 
@@ -29,9 +29,10 @@ def show(cmdline, cluster, logger):
     '''
     show  [filter]  - Show all nodes or filtered nodes
 
-    Retrieves state from the cloud provider.
-    If a cluster template is loaded, show cluster member and non-member nodes separately.
+    Show node data from in memory cache. Use $refresh to update cache.  
+    Shows only nodes selected by the use command, if any.
     '''
+
     _show(cmdline, cluster, logger, False)
 
 def _show(cmdline, cluster, logger, extended=False):
@@ -50,10 +51,11 @@ def _show(cmdline, cluster, logger, extended=False):
 
 def refresh(cmdline, cluster, logger):
     '''
-    refresh  [filter]  - refresh from cloud and call show
-    
+    refresh [filter]  - refresh from cloud and call show with filter
+
     Note that some operations (start/stop/etc) cause a refresh to occur on the next show.
     '''
+
 
     cluster.invalidate_cache()
     _show(cmdline, cluster, logger, False)
