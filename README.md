@@ -27,15 +27,15 @@ Given a cluster with nodes named master, worker1 .. 5, you can do:
 ```
 dust$ @ pwd  	# run the pwd command on all running nodes 
 
-dust$ @worker\* cd /opt/data    # issue stateful shell commands to nodes named worker\*
+dust$ @worker* cd /opt/data    # issue stateful shell commands to nodes named worker*
 dust$ put data.dat worker* /opt/data
-dust$ @w\* ls
+dust$ @w* ls
 
-dust$ @state=running     # select nodes by property for ssh 
-dust$ showex key=MyKey    # select nodes by property for show details
+dust$ @state=running cd /etc    # select nodes by property for ssh 
+dust$ showex key=MyKey          # select nodes by property for show details
 
-dust$ stop worker\*         # stop all nodes with a local name worker\*
-dust$ terminate worker[4-5] # stop nodes named worker4, worker5 
+dust$ stop worker*         # stop all nodes with a local name worker*
+dust$ terminate worker[4-5] # terminate nodes named worker4, worker5 
 ```
 
 ## Usage
