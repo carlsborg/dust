@@ -12,12 +12,35 @@ Status:
 
 ## Rationale
 
-DustCluster is an ssh cluster shell primarily useful for development, prototyping, one-off configuration of (usually ephemeral) EC2 clusters. 
-Can be useful when developing custom data engineering stacks, maybe 10 nodes at most.
+DustCluster is an ssh cluster shell primarily useful for development, prototyping, one-off configuration of (usually ephemeral) EC2 clusters.
+Can be useful when developing custom data engineering stacks.
+
+Features:
+* Parallel stateful bash shells over ssh.
+* Node selection with wildcards in name, property, or tag -- for ssh or node operations.
+* Commands to bring up a new cluster using cloudformation from a minimal spec via troposphere.
+* Easily extensible -- add new stateful commands.
+
+Example:
+Given a cluster with nodes named master, worker1 .. 5, you can do:
+
+```
+dust$ @ pwd  	# run the pwd command on all running nodes 
+
+dust$ @worker\* cd /opt/data    # issue stateful shell commands to nodes named worker\*
+dust$ put data.dat worker* /opt/data
+dust$ @w\* ls
+
+dust$ @state=running     # select nodes by property for ssh 
+dust$ showex key=MyKey    # select nodes by property for show details
+
+dust$ stop worker\*         # stop all nodes with a local name worker\*
+dust$ terminate worker[4-5] # stop nodes named worker4, worker5 
+```
 
 ## Usage
 
-### Ssh into and control existing EC2 clusters
+### Working with existing nodes
 
 Drop into a dust shell, and show all the nodes in the current region 
 
@@ -58,27 +81,24 @@ Use filters to show/start/stop nodes:
 
 Filter by tag:
 
-> dust$ showex tags=name:node*
+> dust$ showex tags=name:node\*
 
-Select a cluster to work with:
+Some setup - assign nodes to a cluster and name them:
 
 The 'use' command comes with three flavours : region, filter, and cluster; allowing you to select all nodes from a region, 
 or using a filter, or using a cluster config respectively.
 
-> dust$ use filter tags=name:node*
+> dust$ use filter tags=\*groupName:SomeGroup    # filter nodes with tags where key=\*groupName and value=SomeGroup
 
-This selects nodes with the tag name=node*, and saves them to a cluster config so that you can name nodes and address them 
+This selects nodes with the tag \*groupName=SomeGroup, and saves them to a cluster config so that you can name nodes and address them 
 by a friendly name (as you would in sshconfig).
 
-Edit and then use the saved cluster config with:
+Edit the cluster config file for nodenames if needed and then use the cluster with:
 
-> dust$ use cluster mycluster.yaml
+> dust$ use cluster NewClusterName
 
-Now you can perform cluster operations using names like worker1, worker2, etc.
+Now you can perform cluster operations targeting nodes with the local names and wildcards.
 
-Use all nodes in a region:
-
-> dust$ use region us-west-1
 
 ### Start a new cluster
 
@@ -147,7 +167,7 @@ Cluster Nodes:
 
 > dust$ refresh
 
-The nodes should be in the pending state, and the ID, IP and DNS fields populated.
+The nodes should be in the pending/running state, and the ID, IP and DNS fields populated.
 
 **Note on authentication**:
 
@@ -155,7 +175,7 @@ Only key based authentication is supported. You can specify the key or keyfile i
 
 ### Target a set of nodes with wildcards and filter expressions
 
-Once you have loaded a cluster config with "$use cluster", nodes now have 
+Once you have loaded a cluster config with "$use cluster clustername", nodes now have 
 friendly names and you can use nodename wildcards as a target:
 
 The basic node operations are start/stop/terminate 
@@ -184,6 +204,8 @@ No target implies all nodes.
 
 
 ### Cluster ssh to a set of nodes
+
+Send commands to parallel bash shells with the @[target] operator 
 
 Execute 'uptime' over ssh on a set of nodes named worker\* with:
 
@@ -305,7 +327,9 @@ And this:
 
 sends a Y to all the nodes named work\* and the apt-get script continues.
 
-### Run vim or top on a single node, with the same ssh session ! 
+(There are commands to drive Ansible playbooks coming soon)
+
+### Run vim or top on a single node, with the same ssh session.
 
 > dust$ @worker2
 
