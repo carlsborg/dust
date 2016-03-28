@@ -30,6 +30,8 @@ from dustcluster import commands
 from dustcluster.util import setup_logger
 logger = setup_logger( __name__ )
 
+import glob
+
 
 class CommandState(object):
     '''
@@ -71,8 +73,11 @@ class Cluster(object):
 
         self.user_dir = os.path.expanduser('~')
         self.dust_dir = os.path.join(self.user_dir, '.dustcluster')
+        self.clusters_dir = os.path.join(self.dust_dir, 'clusters')
         self.user_data_file = os.path.join(self.dust_dir, 'user_data')
         self.default_keys_dir = os.path.join(self.dust_dir, 'keys')
+
+        self.clusters = self.read_all_clusters()
 
     def validate_config(self):
 
@@ -132,17 +137,32 @@ class Cluster(object):
 
         return False
 
+    def read_all_clusters(self):
+        wildcardpath = os.path.join(self.clusters_dir, "*.yaml")
+        cluster_files = glob.glob(wildcardpath)
+        logger.debug("found [%d] clusters in %s" % (len(cluster_files), wildcardpath))
+        clusters = {}
+        for cluster_file in cluster_files:
+            
+            if os.path.isfile(cluster_file):
+                with open(cluster_file, "r") as fh:
+                    cluster = yaml.load(fh.read())
+                    cluster_props = cluster.get('cluster')
+                    cluster_name = cluster_props.get('name')
+                    clusters[cluster_name] = cluster
+
+        return clusters
 
     def load_template(self, config_file):
 
         self.cloud, self.template, self.region = loadcnf_yaml.load_template(config_file, creds_map=self.config_data)
         self.invalidate_cache()
 
-
     def load_template_from_yaml(self, str_yaml):
 
         self.cloud, self.template, self.region = loadcnf_yaml.load_template_from_yaml(str_yaml, creds_map=self.config_data)
         self.invalidate_cache()
+        logger.info("To unload this cluster do $use %s" % self.cloud.region)
 
     def load_template_from_config(self,config_data):
 
@@ -412,9 +432,9 @@ class Cluster(object):
 
         if op:
             if filterkey:
-                logger.info( "invoking %s on nodes where %s=%s" % (op, filterkey, filterval) )
+                logger.debug( "invoking %s on nodes where %s=%s" % (op, filterkey, filterval) )
             else:
-                logger.info( "invoking %s on all cluster nodes" % op )
+                logger.debug( "invoking %s on all cluster nodes" % op )
 
         if not target_nodes:
             logger.info( 'no nodes found that match filter %s=%s' % (filterkey, filterval) )

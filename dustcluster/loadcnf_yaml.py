@@ -73,7 +73,7 @@ def load_template_from_yaml(markup, creds_map={}):
             #raise Exception("A cloud definition needs to have a 'cloudname' attribute")
         #cloud_template.update(copy.deepcopy(defaults))
 
-        logger.info('loaded template with %s nodes' % (len(template_data.get('nodes', [])) ))
+        logger.debug('Loaded cluster config with %s nodes' % (len(template_data.get('nodes', [])) ))
 
     except Exception, ex:
         logger.error('Error loading template : %s' % ex)

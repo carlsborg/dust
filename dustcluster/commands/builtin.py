@@ -153,7 +153,7 @@ def operation(logger, cluster, op, target_node_str=None, confirm=False):
             return
 
         if confirm:
-            logger.info( "Invoking %s on these nodes" % op )
+            logger.debug( "Invoking %s on these nodes" % op )
             cluster.show(target_nodes)
 
             confirm_str = "Continue [Y/N]:"

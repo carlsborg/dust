@@ -85,22 +85,22 @@ class Console(Cmd):
 
         Cmd.__init__(self)
 
-        self.cluster = Cluster(config_data)
         self.commands = {}  # { cmd : (helpstr, module) }
         # startup
+        self.cluster = Cluster(config_data)
         self.cluster.load_commands()
-    
-        default_config = 'dust.yaml'
-        if os.path.exists(default_config):
-            logger.info('Found %s, loading template' % default_config)
-            self.cluster.load_template(default_config)
-            self.cluster.load_default_keys(self.default_keypath)
-
+ 
         self.exit_flag = False
         self.cluster.lineterm.set_refresh_callback(self.redisplay)
 
         self.cluster.handle_command('loglevel',  config_data.get('loglevel') or 'info')
         logger.info(self.dustintro)
+        if self.cluster.clusters:
+            print "\nAvailable clusters:"
+            for cluster_name in self.cluster.clusters:
+                print cluster_name
+
+            print
 
     def read_config(self, config_file):
 

@@ -62,17 +62,17 @@ Filter by tag:
 
 Select a cluster to work with:
 
-The 'use' command comes with three flavours : region, filter, and template; allowing you to select all nodes from a region, 
-or using a filter, or using a template spec respectively.
+The 'use' command comes with three flavours : region, filter, and cluster; allowing you to select all nodes from a region, 
+or using a filter, or using a cluster config respectively.
 
 > dust$ use filter tags=name:node*
 
-This selects nodes with the tag name=node*, and saves down a template so that you can name nodes and address them 
+This selects nodes with the tag name=node*, and saves them to a cluster config so that you can name nodes and address them 
 by a friendly name (as you would in sshconfig).
 
-Edit and then use the saved template with:
+Edit and then use the saved cluster config with:
 
-> dust$ use template mycluster.yaml
+> dust$ use cluster mycluster.yaml
 
 Now you can perform cluster operations using names like worker1, worker2, etc.
 
@@ -82,8 +82,9 @@ Use all nodes in a region:
 
 ### Start a new cluster
 
-Optionally there is support to sync a very minimal cluster spec to the cloud. (You can write stateful commands to use
-CloudFormation or Troposphere for more elaborate specs.)
+Optionally there is support to sync a very minimal cluster spec to the cloud. The load command uses troposphere 
+to convert a cluster config of the form below to an AWS cloudformation template, and then uses the cloudformation apis
+to start the cluster.
 
 sample.yaml
 
@@ -109,7 +110,27 @@ nodes:
   key: ec2dust
 ```
 
-> dust$ use template sample.yaml
+> dust$ load sample.yaml
+
+This dumps the cloudformation template for review, validates it from the cloud, and creates a stack.
+See the creation status of this cluster with $status stackname
+
+> dust$ status nano2
+
+Shows events from the cloudformation create:
+
+```
+dust:2016-03-28 01:39:44,295 | Connecting to cloud formation endpoint in us-east-1
+StackEvent AWS::CloudFormation::Stack CNano CREATE_IN_PROGRESS
+StackEvent AWS::EC2::Instance node1 CREATE_IN_PROGRESS
+StackEvent AWS::EC2::Instance node1 CREATE_IN_PROGRESS
+StackEvent AWS::EC2::Instance node0 CREATE_IN_PROGRESS
+StackEvent AWS::EC2::Instance node0 CREATE_IN_PROGRESS
+StackEvent AWS::EC2::Instance node1 CREATE_COMPLETE
+StackEvent AWS::EC2::Instance node0 CREATE_COMPLETE
+StackEvent AWS::CloudFormation::Stack CNano CREATE_COMPLETE
+dust:2016-03-28 01:39:44,896 | ok
+```
 
 > dust$ show
 
@@ -117,15 +138,12 @@ nodes:
 dust:dragonex$ show
 dust:2014-09-14 08:29:22,234 | cluster 'democloud' in eu-west-1, using key: ec2dust
         Name     Instance        Image        State           ID           IP          DNS         tags 
-Template Nodes:
+Cluster Nodes:
      worker1     t2.small ami-892fe1fe  not_started                                                     
      worker0     t2.small ami-892fe1fe  not_started                                                     
      worker2     t2.small ami-892fe1fe  not_started                                                     
       master    m3.medium ami-892fe1fe  not_started                                                     
 ```
-
-
-> dust$ start
 
 > dust$ refresh
 
@@ -133,11 +151,11 @@ The nodes should be in the pending state, and the ID, IP and DNS fields populate
 
 **Note on authentication**:
 
-Only key based authentication is supported. You can specify the key or keyfile in the template under each node.
+Only key based authentication is supported. You can specify the key or keyfile in the cluster config under each node.
 
 ### Target a set of nodes with wildcards and filter expressions
 
-Once you have loaded a template with "$use template", nodes now have 
+Once you have loaded a cluster config with "$use cluster", nodes now have 
 friendly names and you can use nodename wildcards as a target:
 
 The basic node operations are start/stop/terminate 

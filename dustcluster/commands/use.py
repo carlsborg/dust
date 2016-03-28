@@ -13,6 +13,7 @@
 ''' dust command for getting and putting files from/to a set of nodes '''
 
 import yaml
+import os
 from collections import OrderedDict
 
 # export commands
@@ -23,11 +24,13 @@ commands = ['use']
 #TODO: store key file- and loginuser- mappings in .dustcluster/mapping
 def use(cmdline, cluster, logger):
     '''
-    use region [region] | filter [filter] | template [file] - use a set of nodes. all nodes in a region, or defined by a filter, or by a template file.
+    use region [region] | filter [filter] | cluster [name or file] - select a set of nodes to work with
 
     Notes:
+    Select all nodes in a region, or defined by a filter, or by a cluster config file.
+
     After the use command, commands like show and cluster wide commands like stop/start/@ for a target = * or None will
-    apply to the set of nodes selected. 
+    apply to the set of nodes selected.
 
     When used with the filter argument, applies the filter to nodes in the current region, asks for ssh details, 
     and then save this in a template file for future use.
@@ -35,12 +38,13 @@ def use(cmdline, cluster, logger):
     Examples:
     use region us-east-1        # work with all nodes in this region 
     use filter tags=env:dev     # work with nodes with this filter
-    use template mycluster.yaml # work with the nodes defined in mycluster.yaml 
+    use cluster clusterA        # work with the nodes defined in cluster config clusterA.yaml 
+    use cluster clusterB.yaml   # work with the nodes defined in file clusterB.yaml
     '''
 
     args = cmdline.split()
 
-    usage = "use region [region] | filter [filter] | template [file]"
+    usage = "use region [region] | filter [filter] | cluster [file]"
     if not args:
         logger.error(usage)
         return
@@ -49,8 +53,8 @@ def use(cmdline, cluster, logger):
         use_region(args, cluster, logger)
     elif args[0] == "filter":
         use_filter(args, cluster, logger)
-    elif args[0] == "template":
-        use_template(args, cluster, logger)
+    elif args[0] == "cluster":
+        use_cluster(args, cluster, logger)
     else:
         logger.error(usage)
 
@@ -76,10 +80,14 @@ def use_filter(args, cluster, logger):
                 ('provider' , 'ec2'),
                 ('region' , cluster.cloud.region)
              ])
-    
+
+
+
+    name = raw_input("Name this cluster:")
+ 
     # write a new yaml template to ./dustcluster templates
     cluster_props = dict([
-                    ('name', 'user_selected'),
+                    ('name', name),
                     ('filter' , target)
                     ])
 
@@ -100,36 +108,51 @@ def use_filter(args, cluster, logger):
 
     str_yaml = yaml.dump(template, default_flow_style=False)
 
-    cluster.load_template_from_yaml(str_yaml)
+    logger.info("\n" + str_yaml)
 
-    target_nodes = cluster.any_nodes_from_target(target)
-    cluster.show(target_nodes)
-
-    save_to_file = raw_input("Save template to file [no]:")
+    save_to_file = raw_input("Save as cluster %s [yes]:" % name) or "yes"
 
     if save_to_file.lower().startswith('y'):
-
-        name = raw_input("Name this cluster:")
         template_file = "%s.yaml" % name
+        template_file = os.path.join(cluster.clusters_dir, template_file)
+
+        if os.path.exists(template_file):
+            yesno = raw_input("%s exists. Overwrite?[y]:" % template_file) or "yes"
+            if not yesno.lower().startswith("y"):
+                return
+
+        if not os.path.exists(cluster.clusters_dir):
+            os.makedirs(cluster.clusters_dir)
 
         with open(template_file, 'w') as yaml_file:
             yaml_file.write(str_yaml)
 
-        logger.info("\n" + str_yaml)
-        logger.info("Wrote template to %s. Edit the template to rename nodes from defaults %s.. %s" 
+        logger.info("Wrote cluster config to %s. Edit the file to rename nodes from defaults %s.. %s" 
                     % (template_file,  nodes[0].get('nodename'), nodes[-1].get('nodename')))
 
-    else:
-        logger.info("Using cluster. Save template and edit it to rename nodes.")
+        cluster.load_template_from_yaml(str_yaml)
 
 
-def use_template(args, cluster, logger):
+
+def use_cluster(args, cluster, logger):
 
     if len(args) < 2:
-        logger.error("use template template_file. e.g. use template mycluster.yaml")
+        logger.error("use cluster [clustername] or [cluster config file]. e.g. use cluster clusterA.yaml")
         return
 
-    template_file = args[1]
+    arg = args[1]
+
+    if ".yaml" not in arg:
+
+        if arg not in cluster.clusters:
+            logger.error("%s is not a recognized cluster" % arg)
+            return 
+
+        template_file = os.path.join(cluster.clusters_dir, arg + ".yaml")
+        logger.info("Loading cluster config %s" % template_file)
+    
+    else:
+        template_file = arg
 
     cluster.load_template(template_file)
     cluster_nodes, num_absent_nodes = cluster.resolve_cluster_nodes()
@@ -145,6 +168,7 @@ def use_template(args, cluster, logger):
         logger.info("Found %d nodes in the cloud for this cluster filter that are not in the template."
                         % num_unnamed_nodes)
         logger.info("Edit the template or use the '$use filter_expression' command to create a new one.")
+
 
 def use_region(args, cluster, logger):
 
@@ -167,7 +191,7 @@ def deduce_node_name(node, i):
 
     for tag in node.tags.keys():
         if tag.lower() == 'name':
-            return node.tags[tag]
+            return str(node.tags[tag])
 
     return "node%d" % i
 
