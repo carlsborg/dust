@@ -26,13 +26,12 @@ from cmd import Cmd
 
 import paramiko
 from dustcluster import commands, lineterm
+from dustcluster import __version__
 from dustcluster.cluster import Cluster
 import atexit
 
 from dustcluster import util
 logger = util.setup_logger( __name__ )
-
-__version__ = '0.01'
 
 class Console(Cmd):
     ''' command line tool to control a cloud cluster '''

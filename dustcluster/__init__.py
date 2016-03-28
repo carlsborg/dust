@@ -1,3 +1,3 @@
 
-from console import __version__
+__version__ = 0.01 
 

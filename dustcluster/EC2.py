@@ -145,8 +145,6 @@ class EC2Node(object):
         self._username = username
         self.is_template_node = False
         self.cloud = cloud or None
-        self.context = {}
-        self._secgroups = []
 
     def __repr__(self):
         data = self.disp_data()
@@ -345,14 +343,14 @@ class EC2Node(object):
 
         if self.vm:
 
-            if self._vm.public_dns_name:
-                ret['DNS'] = self._vm.public_dns_name
-
             if self._vm.tags:
                 ret['tags'] = ",".join( '%s=%s' % (k,v) for k,v in self._vm.tags.items())
 
             if self._vm.key_name:
                 ret['key'] = self._vm.key_name
+
+            ret['launch_time'] = self._vm.launch_time
+            ret['vpc:subnet'] = "%s:%s" % (self._vm.vpc_id, self._vm.subnet_id)
 
         return ret
 
