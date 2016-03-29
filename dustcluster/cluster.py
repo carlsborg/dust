@@ -77,7 +77,8 @@ class Cluster(object):
         self.user_data_file = os.path.join(self.dust_dir, 'user_data')
         self.default_keys_dir = os.path.join(self.dust_dir, 'keys')
 
-        self.clusters = self.read_all_clusters()
+        self.clusters = {}
+        self.read_all_clusters()
 
     def validate_config(self):
 
@@ -151,7 +152,7 @@ class Cluster(object):
                     cluster_name = cluster_props.get('name')
                     clusters[cluster_name] = cluster
 
-        return clusters
+        self.clusters = clusters
 
     def load_template(self, config_file):
 

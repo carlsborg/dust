@@ -17,14 +17,11 @@ import os
 from collections import OrderedDict
 
 # export commands
+commands = ['use', 'assign']
 
-commands = ['use']
-
-
-#TODO: store key file- and loginuser- mappings in .dustcluster/mapping
 def use(cmdline, cluster, logger):
     '''
-    use region [region] | filter [filter] | cluster [name or file] - select a set of nodes to work with
+    use region [region] | cluster [name or file] - select a set of nodes to work with
 
     Notes:
     Select all nodes in a region, or defined by a filter, or by a cluster config file.
@@ -32,42 +29,58 @@ def use(cmdline, cluster, logger):
     After the use command, commands like show and cluster wide commands like stop/start/@ for a target = * or None will
     apply to the set of nodes selected.
 
-    When used with the filter argument, applies the filter to nodes in the current region, asks for ssh details, 
-    and then save this in a template file for future use.
-
     Examples:
     use region us-east-1        # work with all nodes in this region 
-    use filter tags=env:dev     # work with nodes with this filter
-    use cluster clusterA        # work with the nodes defined in cluster config clusterA.yaml 
-    use cluster clusterB.yaml   # work with the nodes defined in file clusterB.yaml
+    use cluster clusterA        # work with the nodes defined in cluster config clusterA.yaml
     '''
 
     args = cmdline.split()
 
-    usage = "use region [region] | filter [filter] | cluster [file]"
+    usage = "use region [region] | cluster [file]"
     if not args:
         logger.error(usage)
         return
 
     if args[0] == "region":
         use_region(args, cluster, logger)
-    elif args[0] == "filter":
-        use_filter(args, cluster, logger)
     elif args[0] == "cluster":
         use_cluster(args, cluster, logger)
     else:
         logger.error(usage)
+
+
+def assign(cmdline, cluster, logger):
+    '''
+    assign [filter] - assign the nodes from [filter] to a new cluster
+
+    Notes:
+    Applies the filter to nodes in the current region, asks for ssh details, 
+    and then save this in a cluster config file for future use.
+
+    If any of the filtered nodes are already assigned to a cluster an error 
+    is raised. Use the tag command and then filter on that tag.
+
+    Examples:
+    assign tags="aws:cloudformation:stack-name":ClusterA
+    assign tags="*cloudformation*":ClusterA
+    '''
+
+    args = cmdline.split()
+
+    usage = "assign filter-expression"
+    if not args:
+        logger.error(usage)
+        return
+
+    use_filter(args, cluster, logger)
+
 
 def use_filter(args, cluster, logger):
 
     # TODO: retain node names and loginusers if already there.
     #       prompt for save template
 
-    if len(args) < 2:
-        logger.error("use filter filter_expression. e.g. use filter state=running")
-        return
-
-    target = args[1]
+    target = args[0]
     target_nodes = cluster.any_nodes_from_target(target)
 
     if not target_nodes:
@@ -80,7 +93,6 @@ def use_filter(args, cluster, logger):
                 ('provider' , 'ec2'),
                 ('region' , cluster.cloud.region)
              ])
-
 
 
     name = raw_input("Name this cluster:")
@@ -132,27 +144,27 @@ def use_filter(args, cluster, logger):
 
         cluster.load_template_from_yaml(str_yaml)
 
+        cluster.read_all_clusters()
+
 
 
 def use_cluster(args, cluster, logger):
 
     if len(args) < 2:
-        logger.error("use cluster [clustername] or [cluster config file]. e.g. use cluster clusterA.yaml")
+        logger.error("use cluster [clustername]. e.g. use cluster clusterA.yaml")
         return
 
     arg = args[1]
 
-    if ".yaml" not in arg:
+    if arg not in cluster.clusters:
+        logger.error("%s is not a recognized cluster." % arg)
+        if cluster.clusters:
+            for cluster_name in cluster.clusters: 
+                print cluster_name
+            return
 
-        if arg not in cluster.clusters:
-            logger.error("%s is not a recognized cluster" % arg)
-            return 
-
-        template_file = os.path.join(cluster.clusters_dir, arg + ".yaml")
-        logger.info("Loading cluster config %s" % template_file)
-    
-    else:
-        template_file = arg
+    template_file = os.path.join(cluster.clusters_dir, arg + ".yaml")
+    logger.info("Loading cluster config %s" % template_file)
 
     cluster.load_template(template_file)
     cluster_nodes, num_absent_nodes = cluster.resolve_cluster_nodes()

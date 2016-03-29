@@ -83,15 +83,12 @@ Filter by tag:
 
 > dust$ showex tags=name:node\*
 
-Some setup - assign nodes to a cluster and name them:
+Some setup - assign nodes to a cluster and name them, using the 'assign' command.
 
-The 'use' command comes with three flavours : region, filter, and cluster; allowing you to select all nodes from a region, 
-or using a filter, or using a cluster config respectively.
+> dust$ assign tags=\*cloudformation\*stack-name:kafka1   
 
-> dust$ use filter tags=\*groupName:SomeGroup    # filter nodes with tags where key=\*groupName and value=SomeGroup
-
-This selects nodes with the tag \*groupName=SomeGroup, and saves them to a cluster config so that you can name nodes and address them 
-by a friendly name (as you would in sshconfig).
+This selects nodes for tags where key is *cloudformation*stack-name and value is kafka1, asks for some details, 
+and saves them to a cluster config so that you can name nodes and address them by a friendly name (as you would in sshconfig).
 
 Edit the cluster config file for nodenames if needed and then use the cluster with:
 
