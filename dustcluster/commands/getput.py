@@ -30,6 +30,10 @@ def put(cmdline, cluster, logger):
     put worker* /opt/data/data.txt /opt/data/data.txt
     put worker* /opt/data/*.txt     # wildcards work
     '''
+    if not cmdline or len(cmdline) < 2:
+        logger.error("usage: put target src [dest]")
+        return
+
     target = cmdline.split()[0]
 
     target_nodes = cluster.running_nodes_from_target(target)
@@ -65,6 +69,11 @@ def get(cmdline, cluster, logger):
     get worker* /opt/output/*.txt        # download to cwd
     get worker* /opt/output/*.txt /tmp   # download to /tmp
     '''
+
+    if not cmdline or len(cmdline) < 2:
+        logger.error("usage: get target remotefile [localdir]")
+        return
+
     target = cmdline.split()[0]
 
     target_nodes = cluster.running_nodes_from_target(target)

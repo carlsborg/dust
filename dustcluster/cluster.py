@@ -32,6 +32,8 @@ logger = setup_logger( __name__ )
 
 import glob
 
+from dustcluster.EC2 import EC2Cloud
+
 
 class CommandState(object):
     '''
@@ -59,12 +61,12 @@ class Cluster(object):
 
         self.cloud = None
         self.nodecache = None # invalidated on load template/start/stop/terminate/etc
-        self.template = None
         self.region = None
 
-        self.config_data = config_data
+        self.dust_config_data = config_data
         self.user_data = None
-        self.load_template_from_config(config_data)
+        self.cur_cluster = ""
+        self.init_default_provider(config_data)
         self.validate_config()
 
         self._commands = {}
@@ -84,8 +86,8 @@ class Cluster(object):
 
         required = ["aws_access_key_id", "aws_secret_access_key", "region"]
         for s in required:
-            if s not in self.config_data.keys():
-                logger.error("Config data [%s] is missing [%s] key" % (str(self.config_data.keys()), s))
+            if s not in self.dust_config_data.keys():
+                logger.error("Config data [%s] is missing [%s] key" % (str(self.dust_config_data.keys()), s))
                 raise Exception("Bad config.")
 
     def invalidate_cache(self):
@@ -154,34 +156,98 @@ class Cluster(object):
 
         self.clusters = clusters
 
-    def load_template(self, config_file):
+    #def load_template(self, config_file):
 
-        self.cloud, self.template, self.region = loadcnf_yaml.load_template(config_file, creds_map=self.config_data)
-        self.invalidate_cache()
+        #self.cloud, self.template, self.region = loadcnf_yaml.load_template(config_file, creds_map=self.dust_config_data)
+        #self.invalidate_cache()
 
-    def load_template_from_yaml(self, str_yaml):
+    #def load_template_from_yaml(self, str_yaml):
 
-        self.cloud, self.template, self.region = loadcnf_yaml.load_template_from_yaml(str_yaml, creds_map=self.config_data)
-        self.invalidate_cache()
-        logger.info("To unload this cluster do $use %s" % self.cloud.region)
+        #self.cloud, self.template, self.region = loadcnf_yaml.load_template_from_yaml(str_yaml, creds_map=self.dust_config_data)
+        #self.invalidate_cache()
+        #logger.info("To unload this cluster do $use %s" % self.cloud.region)
 
-    def load_template_from_config(self,config_data):
+    def init_default_provider(self, dust_config_data):
 
-        cluster_config = {}
+        default_region = dust_config_data.get("region")
+        if not default_region:
+            raise Exception("Dust cluster config file or aws config file does not have a default region.")
 
-        # create cluster objects with defaults
-        cluster_config["region"] = config_data.get("region")
+        cloud_data = { 'provider': 'ec2', 'region' :  default_region}
 
-        logger.info("Setting region to %s" % cluster_config["region"])
+        self.init_cloud_provider(cloud_data)
 
-        self.cloud , self.template, self.region = loadcnf_yaml.load_template_from_map(
-                                               cluster_config, creds_map=self.config_data)
-        self.invalidate_cache()
 
-    def unload_template(self):
+    def switch_to_cluster(self, cluster_name):
+
+        if cluster_name not in self.clusters:
+            logger.error("%s is not a recognized cluster." % cluster_name)
+            self.show_clusters()
+            return
+
+        self.cur_cluster = cluster_name
+
+        cluster_config_data = self.clusters[cluster_name]
+
+        cloud_data = cluster_config_data.get('cloud')
+
+        if not cloud_data:
+            raise Exception("No 'cloud:' section in template")
+
+        self.init_cloud_provider(cloud_data)
+
+        cluster_nodes, num_absent_nodes = self.resolve_cluster_nodes()
+        num_unnamed_nodes = len([node for node in cluster_nodes if not node.name])
+
+        self.show(cluster_nodes)
+
+        if num_absent_nodes:
+            logger.info("Found %d nodes in the template that cannot be matched to any cloud reservations."
+                            % num_absent_nodes)
+
+        if num_unnamed_nodes:
+            logger.info("Found %d nodes in the cloud for this cluster filter that are not in the template."
+                            % num_unnamed_nodes)
+            logger.info("Edit the template or use the '$assign filter_expression' command to create a new one.")
+
+        logger.debug('Switched to cluster config %s with %s nodes' % (cluster_name, len(cluster_config_data.get('nodes', [])) ))
+
+
+    #TODO: provider connection cache
+    def init_cloud_provider(self, cloud_data):
+
+        provider = cloud_data.get('provider')
+
+        if not provider:
+            raise Exception("No 'provider:' section in cloud")
+
+        cloud_provider = None
+        cloudregion = cloud_data.get('region')
+        if provider.lower() == 'ec2':
+            cloud_provider = EC2Cloud(creds_map=self.dust_config_data, region=cloudregion)
+        else:
+            raise Exception("Unknown cloud provider [%s]." % provider)
+
+        self.cloud = cloud_provider
+
+        if self.region != cloudregion:
+            self.invalidate_cache()
+
+        self.region = cloudregion
+
+
+    def show_clusters(self):
+
+        for cluster_name in self.clusters:
+            print cluster_name
+
+        return
+
+
+    def unload_cur_cluster(self):
         ''' unload a cluster template ''' 
+        self.cur_cluster = ""
         self.cloud = None
-        self.template = None
         self.region = None
         self.invalidate_cache()
 
@@ -247,11 +313,12 @@ class Cluster(object):
         ''' print summary of cloud nodes to stdout '''
 
         if not self.cloud:
-            logger.error('Internal error. No cloud config or template loaded.')
+            logger.error('Internal error. No cloud provider set.')
             return
 
-        if self.template:
-            cluster_props = self.template.get('cluster')
+        if self.cur_cluster:
+            cur_cluster_config = self.clusters[self.cur_cluster]
+            cluster_props = cur_cluster_config.get('cluster')
             name = cluster_props.get('name')
             if not name:
                 cluster_filter = cluster_props.get('filter')
@@ -364,12 +431,12 @@ class Cluster(object):
 
         return filtered
 
+
     def resolve_cluster_nodes(self):
-        ''' return a list of cloud nodes that match the cluster filter'''
+        ''' return a list of cloud nodes that match the current cluster filter'''
 
         startColorGreen = "\033[0;32;40m"
         endColor        = "\033[0m"
-
 
         # refresh nodes state from cloud
         if self.nodecache:
@@ -380,10 +447,16 @@ class Cluster(object):
             logger.info("Retrieved [%d] nodes %sfrom cloud provider%s" % (len(nodes), startColorGreen, endColor))
             self.nodecache = nodes
 
+        if not self.cur_cluster:    # region selected, so show all nodes
+            return nodes, len(nodes)
+
         # filter by cluster filter
         filterkey, filterval = "", ""
-        if self.template and self.template.get('cluster'):
-            cluster_props = self.template.get('cluster')
+
+        cur_cluster_config = self.clusters.get(self.cur_cluster)
+
+        if cur_cluster_config.get('cluster'):
+            cluster_props = cur_cluster_config.get('cluster')
             cluster_filter = cluster_props.get('filter')
             if not cluster_filter:
                 name = cluster_props.get('name')
@@ -401,7 +474,7 @@ class Cluster(object):
             cluster_nodes = nodes
 
         # name the nodes from the cluster template
-        cluster_nodes, num_absent_nodes = self.match_nodes_to_template(cluster_nodes)
+        cluster_nodes, num_absent_nodes = self.match_nodes_to_cluster_config(cluster_nodes, cur_cluster_config)
 
         return cluster_nodes, num_absent_nodes
 
@@ -412,8 +485,7 @@ class Cluster(object):
             if a cluster is being used, filter by cluster selector first
         '''
         if not self.cloud:
-            logger.error('Internal error: No cloud provider loaded.')
-            return
+            raise Exception('Internal error: No cloud provider loaded.')
 
         cluster_nodes, num_absent_nodes = self.resolve_cluster_nodes()
 
@@ -443,7 +515,7 @@ class Cluster(object):
         return target_nodes
 
 
-    def match_nodes_to_template(self, cluster_nodes):
+    def match_nodes_to_cluster_config(self, cluster_nodes, cluster_config):
         '''
         do an outer join of the template nodes and cloud nodes using the 
         node filter expression as the key.
@@ -451,10 +523,7 @@ class Cluster(object):
         assumes the list of nodes is already filtered by cluster filter
         '''
 
-        if not self.template:
-            return cluster_nodes, 0
-
-        template_nodes = self.template.get('nodes')
+        template_nodes = cluster_config.get('nodes')
         if not template_nodes:
             return cluster_nodes, len(cluster_nodes)
 
@@ -475,7 +544,7 @@ class Cluster(object):
         
             logger.debug("Found %s matching nodes out of %d for this filter" % (len(matching_nodes), len(cluster_nodes)) )
 
-            cluster_props = self.template.get('cluster')
+            cluster_props = cluster_config.get('cluster')
 
             if not matching_nodes:
                 abs_node = self.cloud.create_absent_node(**template_node)

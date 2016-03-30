@@ -84,14 +84,14 @@ def load(cmdline, cluster, logger):
 
         conn.create_stack(stack_name=cluster_name,  template_body=cfn_json)
 
-        # refresh from cloud next operation
-        #cluster.invalidate_cache()
+        cluster.invalidate_cache()
 
     except Exception, e:
         logger.exception('Error: %s' % e)
         return
 
-    logger.info( 'cluster creation kicked off. see status with $status %s' %  cluster_name)
+    logger.info( 'Cluster creation kicked off. see status with $status %s.' %  cluster_name)
+    logger.info( 'Once the nodes are up, assign to a cluster with $assign tags=*cloudformation*stack-name:%s' %  cluster_name)
 
 
 def status(cmdline, cluster, logger):

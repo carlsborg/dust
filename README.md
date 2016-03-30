@@ -87,8 +87,8 @@ Some setup - assign nodes to a cluster and name them, using the 'assign' command
 
 > dust$ assign tags=\*cloudformation\*stack-name:kafka1   
 
-This selects nodes for tags where key is *cloudformation*stack-name and value is kafka1, asks for some details, 
-and saves them to a cluster config so that you can name nodes and address them by a friendly name (as you would in sshconfig).
+This selects nodes for tags where key is \*cloudformation\*stack-name and value is kafka1, and saves them to a
+ cluster config so that you can name nodes and address them by a friendly name (as you would in sshconfig).
 
 Edit the cluster config file for nodenames if needed and then use the cluster with:
 
@@ -149,22 +149,11 @@ StackEvent AWS::CloudFormation::Stack CNano CREATE_COMPLETE
 dust:2016-03-28 01:39:44,896 | ok
 ```
 
-> dust$ show
+Once the new nodes are up, assign them to a cluster:
 
-```
-dust:dragonex$ show
-dust:2014-09-14 08:29:22,234 | cluster 'democloud' in eu-west-1, using key: ec2dust
-        Name     Instance        Image        State           ID           IP          DNS         tags 
-Cluster Nodes:
-     worker1     t2.small ami-892fe1fe  not_started                                                     
-     worker0     t2.small ami-892fe1fe  not_started                                                     
-     worker2     t2.small ami-892fe1fe  not_started                                                     
-      master    m3.medium ami-892fe1fe  not_started                                                     
-```
+> dust$ assign tags=\*stack-name\*:nano2
 
-> dust$ refresh
-
-The nodes should be in the pending/running state, and the ID, IP and DNS fields populated.
+> dust$ use cluster nano2
 
 **Note on authentication**:
 

@@ -21,7 +21,7 @@ commands = ['use', 'assign']
 
 def use(cmdline, cluster, logger):
     '''
-    use region [region] | cluster [name or file] - select a set of nodes to work with
+    use region [region] | cluster [name] - select a set of nodes to work with
 
     Notes:
     Select all nodes in a region, or defined by a filter, or by a cluster config file.
@@ -36,7 +36,7 @@ def use(cmdline, cluster, logger):
 
     args = cmdline.split()
 
-    usage = "use region [region] | cluster [file]"
+    usage = "use region [region] | cluster [cluster_name]"
     if not args:
         logger.error(usage)
         return
@@ -71,14 +71,6 @@ def assign(cmdline, cluster, logger):
     if not args:
         logger.error(usage)
         return
-
-    use_filter(args, cluster, logger)
-
-
-def use_filter(args, cluster, logger):
-
-    # TODO: retain node names and loginusers if already there.
-    #       prompt for save template
 
     target = args[0]
     target_nodes = cluster.any_nodes_from_target(target)
@@ -142,10 +134,9 @@ def use_filter(args, cluster, logger):
         logger.info("Wrote cluster config to %s. Edit the file to rename nodes from defaults %s.. %s" 
                     % (template_file,  nodes[0].get('nodename'), nodes[-1].get('nodename')))
 
-        cluster.load_template_from_yaml(str_yaml)
-
         cluster.read_all_clusters()
 
+        cluster.switch_to_cluster(name)
 
 
 def use_cluster(args, cluster, logger):
@@ -154,32 +145,9 @@ def use_cluster(args, cluster, logger):
         logger.error("use cluster [clustername]. e.g. use cluster clusterA.yaml")
         return
 
-    arg = args[1]
+    cluster_name = args[1]
 
-    if arg not in cluster.clusters:
-        logger.error("%s is not a recognized cluster." % arg)
-        if cluster.clusters:
-            for cluster_name in cluster.clusters: 
-                print cluster_name
-            return
-
-    template_file = os.path.join(cluster.clusters_dir, arg + ".yaml")
-    logger.info("Loading cluster config %s" % template_file)
-
-    cluster.load_template(template_file)
-    cluster_nodes, num_absent_nodes = cluster.resolve_cluster_nodes()
-    num_unnamed_nodes = len([node for node in cluster_nodes if not node.name])
-
-    cluster.show(cluster_nodes)
-
-    if num_absent_nodes:
-        logger.info("Found %d nodes in the template that cannot be matched to any cloud reservations."
-                        % num_absent_nodes)
-
-    if num_unnamed_nodes:
-        logger.info("Found %d nodes in the cloud for this cluster filter that are not in the template."
-                        % num_unnamed_nodes)
-        logger.info("Edit the template or use the '$use filter_expression' command to create a new one.")
+    cluster.switch_to_cluster(cluster_name)
 
 
 def use_region(args, cluster, logger):
@@ -189,13 +157,10 @@ def use_region(args, cluster, logger):
         return
 
     new_region = args[1]
-    config_data = { 'provider': 'ec2', 'region' : new_region }
+    cloud_data = { 'provider': 'ec2', 'region' : new_region }
 
-    if cluster.cloud:
-        logger.info("Unloading current template")
-        cluster.unload_template()
-
-    cluster.load_template_from_config(config_data)
+    cluster.unload_cur_cluster()
+    cluster.init_cloud_provider(cloud_data)
 
     logger.info("Connected to %s " % cluster.region)
 
