@@ -117,26 +117,13 @@ def assign(cmdline, cluster, logger):
     save_to_file = raw_input("Save as cluster %s [yes]:" % name) or "yes"
 
     if save_to_file.lower().startswith('y'):
-        template_file = "%s.yaml" % name
-        template_file = os.path.join(cluster.clusters_dir, template_file)
+            
+        ret = cluster.save_cluster_config(name, str_yaml)
+        if ret: 
+            logger.info("Wrote cluster config to %s. Edit the file to rename nodes from defaults %s.. %s" 
+                        % (ret,  nodes[0].get('nodename'), nodes[-1].get('nodename')))
 
-        if os.path.exists(template_file):
-            yesno = raw_input("%s exists. Overwrite?[y]:" % template_file) or "yes"
-            if not yesno.lower().startswith("y"):
-                return
-
-        if not os.path.exists(cluster.clusters_dir):
-            os.makedirs(cluster.clusters_dir)
-
-        with open(template_file, 'w') as yaml_file:
-            yaml_file.write(str_yaml)
-
-        logger.info("Wrote cluster config to %s. Edit the file to rename nodes from defaults %s.. %s" 
-                    % (template_file,  nodes[0].get('nodename'), nodes[-1].get('nodename')))
-
-        cluster.read_all_clusters()
-
-        cluster.switch_to_cluster(name)
+            cluster.switch_to_cluster(name)
 
 
 def use_cluster(args, cluster, logger):

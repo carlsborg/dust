@@ -66,8 +66,10 @@ class Cluster(object):
         self.dust_config_data = config_data
         self.user_data = None
         self.cur_cluster = ""
-        self.init_default_provider(config_data)
+        self.provider_cache = {}
+
         self.validate_config()
+        self.init_default_provider(config_data)
 
         self._commands = {}
         self.command_state = CommandState()
@@ -156,6 +158,29 @@ class Cluster(object):
 
         self.clusters = clusters
 
+
+    def save_cluster_config(self, name, str_yaml):
+        ''' return path if saved ''' 
+
+        template_file = "%s.yaml" % name
+        template_file = os.path.join(self.clusters_dir, template_file)
+
+        if os.path.exists(template_file):
+            yesno = raw_input("%s exists. Overwrite?[y]:" % template_file) or "yes"
+            if not yesno.lower().startswith("y"):
+                return None
+
+        if not os.path.exists(self.clusters_dir):
+            os.makedirs(self.clusters_dir)
+
+        with open(template_file, 'w') as yaml_file:
+            yaml_file.write(str_yaml)
+
+        self.read_all_clusters()
+
+        return template_file
+
+
     #def load_template(self, config_file):
 
         #self.cloud, self.template, self.region = loadcnf_yaml.load_template(config_file, creds_map=self.dust_config_data)
@@ -202,19 +227,23 @@ class Cluster(object):
         self.show(cluster_nodes)
 
         if num_absent_nodes:
-            logger.info("Found %d nodes in the template that cannot be matched to any cloud reservations."
+            logger.info("Found %d nodes in the cluster config that cannot be matched to any cloud reservations."
                             % num_absent_nodes)
 
         if num_unnamed_nodes:
-            logger.info("Found %d nodes in the cloud for this cluster filter that are not in the template."
+            logger.info("Found %d nodes in the cloud for this cluster filter that are not in the cluster config."
                             % num_unnamed_nodes)
             logger.info("Edit the template or use the '$assign filter_expression' command to create a new one.")
 
         logger.debug('Switched to cluster config %s with %s nodes' % (cluster_name, len(cluster_config_data.get('nodes', [])) ))
 
 
-    #TODO: provider connection cache
     def init_cloud_provider(self, cloud_data):
+
+        self.cloud, self.region = self.get_cloud_provider(cloud_data)
+
+
+    def get_cloud_provider(self, cloud_data):
 
         provider = cloud_data.get('provider')
 
@@ -224,16 +253,16 @@ class Cluster(object):
         cloud_provider = None
         cloudregion = cloud_data.get('region')
         if provider.lower() == 'ec2':
-            cloud_provider = EC2Cloud(creds_map=self.dust_config_data, region=cloudregion)
+            key = ('ec2',cloudregion)
+            cloud_provider = self.provider_cache.get(key) 
+   
+            if not cloud_provider:
+                cloud_provider = EC2Cloud(creds_map=self.dust_config_data, region=cloudregion)
+                self.provider_cache[key] = cloud_provider
         else:
             raise Exception("Unknown cloud provider [%s]." % provider)
 
-        self.cloud = cloud_provider
-
-        if self.region != cloudregion:
-            self.invalidate_cache()
-
-        self.region = cloudregion
+        return cloud_provider, cloudregion
 
 
     def show_clusters(self):
@@ -547,7 +576,10 @@ class Cluster(object):
             cluster_props = cluster_config.get('cluster')
 
             if not matching_nodes:
-                abs_node = self.cloud.create_absent_node(**template_node)
+                node_args = deepcopy(template_node)
+                if node_args.get('selector'):
+                    node_args.pop('selector')
+                abs_node = self.cloud.create_absent_node(**node_args)
                 abs_node.clustername = cluster_props.get('name')
                 absent_nodes.append(abs_node)
 

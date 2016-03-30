@@ -3,7 +3,7 @@ from boto import cloudformation
 from troposphere import ec2, Ref, Template
 import yaml
 import boto
-
+import copy
 
 commands = ['load', 'status']
 
@@ -40,17 +40,20 @@ def load(cmdline, cluster, logger):
         # use troposphere to write out a cloud formation template
         cfn_template = Template()
         nodes = obj_yaml.get('nodes')
+        nodes = expand_clones(nodes)
+        obj_yaml['nodes'] = nodes
+
         for node in nodes:
+            nodename = node.get('nodename')
+            instance = ec2.Instance(nodename, 
+                                    Tags = [ec2.Tag("name", nodename)])
 
-            counter = 0
-            clones = int(node.get('count') or 1)
-
-            for i in range(clones):
-                nodename = node.get('nodename')
-                instance = ec2.Instance( nodename if clones==1 else "%s%s" % (nodename, i))
-                instance.ImageId = node.get('image')
-                instance.InstanceType = node.get('instance_type')
-                cfn_template.add_resource(instance)
+            keyname = node.get('key')
+            if keyname:
+                instance.KeyName = keyname
+            instance.ImageId = node.get('image')
+            instance.InstanceType = node.get('instance_type')
+            cfn_template.add_resource(instance)
 
         # save it to ./dustcluster/clusters/name_region.cfn
         cfn_json = cfn_template.to_json()
@@ -78,20 +81,60 @@ def load(cmdline, cluster, logger):
 
 
         # create the stack
-
-        ret = conn.validate_template(cfn_json)
-        logger.info("Validate returned: %s" % ret)
+        conn.validate_template(cfn_json)
 
         conn.create_stack(stack_name=cluster_name,  template_body=cfn_json)
 
         cluster.invalidate_cache()
+
+        save_cluster(cluster, obj_yaml, logger)
 
     except Exception, e:
         logger.exception('Error: %s' % e)
         return
 
     logger.info( 'Cluster creation kicked off. see status with $status %s.' %  cluster_name)
-    logger.info( 'Once the nodes are up, assign to a cluster with $assign tags=*cloudformation*stack-name:%s' %  cluster_name)
+    logger.info( 'Once the nodes are up, do $use cluster %s' %  cluster_name)
+
+
+def expand_clones(nodes):
+
+    ret_nodes = []
+
+    for node in nodes:
+
+        counter = 0
+        clones = int(node.get('count') or 1)
+
+        if clones == 1:
+            ret_nodes.append(node)
+        else:
+            for i in range(clones):
+                newnode = copy.deepcopy(node)
+                newnode.pop('count')
+                nodename = node.get('nodename')
+                nodename_c = "%s%s" % (nodename, i)
+                newnode['nodename'] = nodename_c
+                ret_nodes.append(newnode)
+
+    return ret_nodes
+
+def save_cluster(cluster, obj_yaml, logger):
+    ''' write cluster config of the new cluster with filters '''
+
+    cluster_props = obj_yaml.get('cluster')
+    name = cluster_props.get('name')
+    cluster_props['filter']= "tags=aws:cloudformation:stack-name:%s" % name
+
+    nodes_props = obj_yaml.get('nodes')
+    for node in nodes_props:
+        node['selector'] = 'tags=name:%s'  % node.get('nodename')
+
+    str_yaml = yaml.dump(obj_yaml, default_flow_style=False)
+    ret = cluster.save_cluster_config(name, str_yaml)
+
+    if ret:
+        logger.info("Wrote cluster to %s" % ret)
 
 
 def status(cmdline, cluster, logger):

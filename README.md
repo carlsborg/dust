@@ -103,57 +103,69 @@ Optionally there is support to sync a very minimal cluster spec to the cloud. Th
 to convert a cluster config of the form below to an AWS cloudformation template, and then uses the cloudformation apis
 to start the cluster.
 
-sample.yaml
+sample1.yaml
 
 ```
 cloud:
-  provider: ec2 
+  provider: ec2
   region: us-east-1
 
 cluster:
-  name: nano2
+  name: sample1
 
 nodes:
-- image: ami-60b6c60a
-  instance_type: t2.nano
-  nodename: worker1
-  username: ec2-user
-  key: ec2dust
 
-- image: ami-60b6c60a
+- image: ami-8fcee4e5
   instance_type: t2.nano
-  nodename: worker2
+  nodename: master
   username: ec2-user
-  key: ec2dust
+  key: YourKeyName
+
+- image: ami-8fcee4e5
+  instance_type: t2.nano
+  nodename: worker
+  username: ec2-user
+  key: YourKeyName
+  count: 2
 ```
 
-> dust$ load sample.yaml
+Note the second node has count = 2.
+
+> dust$ load sample1.yaml
 
 This dumps the cloudformation template for review, validates it from the cloud, and creates a stack.
 See the creation status of this cluster with $status stackname
 
-> dust$ status nano2
+> dust$ status sample1
 
 Shows events from the cloudformation create:
 
 ```
-dust:2016-03-28 01:39:44,295 | Connecting to cloud formation endpoint in us-east-1
-StackEvent AWS::CloudFormation::Stack CNano CREATE_IN_PROGRESS
-StackEvent AWS::EC2::Instance node1 CREATE_IN_PROGRESS
-StackEvent AWS::EC2::Instance node1 CREATE_IN_PROGRESS
-StackEvent AWS::EC2::Instance node0 CREATE_IN_PROGRESS
-StackEvent AWS::EC2::Instance node0 CREATE_IN_PROGRESS
-StackEvent AWS::EC2::Instance node1 CREATE_COMPLETE
-StackEvent AWS::EC2::Instance node0 CREATE_COMPLETE
-StackEvent AWS::CloudFormation::Stack CNano CREATE_COMPLETE
-dust:2016-03-28 01:39:44,896 | ok
+dust:dragonex$ status sample1
+dust:2016-03-30 13:52:01,121 | Connecting to cloud formation endpoint in us-east-1
+StackEvent AWS::CloudFormation::Stack sample1 CREATE_IN_PROGRESS
+StackEvent AWS::EC2::Instance master CREATE_IN_PROGRESS
+StackEvent AWS::EC2::Instance worker1 CREATE_IN_PROGRESS
+StackEvent AWS::EC2::Instance master CREATE_IN_PROGRESS
+StackEvent AWS::EC2::Instance worker1 CREATE_IN_PROGRESS
+dust:2016-03-30 13:52:01,636 | ok
 ```
 
-Once the new nodes are up, assign them to a cluster:
+Once the new nodes are up, use them with:
 
-> dust$ assign tags=\*stack-name\*:nano2
+> dust$ use cluster sample1
 
-> dust$ use cluster nano2
+```
+dust:2016-03-30 13:53:01,772 | Showing nodes for cluster [sample1] in region [us-east-1]
+
+Name         Instance     State        ID         ext_IP          int_IP         
+
+
+worker0      t2.nano      running      i-3b2c29b8 52.87.190.56    172.31.59.157  
+master       t2.nano      running      i-362c29b5 54.173.43.74    172.31.55.88   
+worker1      t2.nano      running      i-632f2ae0 52.207.216.220  172.31.50.102  
+```
+
 
 **Note on authentication**:
 
