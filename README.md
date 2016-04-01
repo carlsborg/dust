@@ -1,3 +1,4 @@
+
 dust
 ====
 
@@ -9,6 +10,23 @@ Status:
 * Currently, this is alpha/work in progress
 
 [Installation and quick start](INSTALL.md)
+
+Table of Contents
+=================
+
+  * [Rationale](#rationale)
+  * [Usage](#usage)
+    * [Working with existing nodes](#working-with-existing-nodes)
+      * [One time setup](#one-time-setup)
+    * [Start a new cluster](#start-a-new-cluster)
+    * [Target a set of nodes with wildcards and filter expressions](#target-a-set-of-nodes-with-wildcards-and-filter-expressions)
+    * [Cluster ssh to a set of nodes](#cluster-ssh-to-a-set-of-nodes)
+    * [These are demultiplexed fully interactive ssh shells !](#these-are-demultiplexed-fully-interactive-ssh-shells-)
+    * [Run vim or top on a single node, with the same ssh session.](#run-vim-or-top-on-a-single-node-with-the-same-ssh-session)
+    * [Add custom functionality with stateful drop-in python commands](#add-custom-functionality-with-stateful-drop-in-python-commands)
+
+
+
 
 ## Rationale
 
@@ -115,13 +133,7 @@ To enable cluster ssh, we assign nodes to a cluster:
 This selects nodes where tags have key = \*cloudformation\*stack-name and value=slurm1, and saves down a cluster config
 so that you can name nodes and address them by friendly names (as you would in sshconfig).
 
-> Ssh login user:
-
-Enter ssh login name
-
-> Name this cluster:
-
-Call this cluster slurm1
+Name this cluster slurm1
 
 > Wrote cluster config to /home/booda/.dustcluster/clusters/slurm1.yaml.
 
@@ -159,7 +171,7 @@ tags set, you can tag them with:
 > Name this cluster: webtest
 
 ```
-dust:2016-04-01 23:12:17,530 | Wrote cluster config to /home/booda/.dustcluster/clusters/web.yaml. Edit the file to rename nodes from defaults
+dust:2016-04-01 23:12:17,530 | Wrote cluster config to /home/booda/.dustcluster/clusters/web.yaml.
 ```
 
 Optionally edit this file if needed - change names, specify an
@@ -245,6 +257,7 @@ nodes:
 
 Note: the second node has count = 2, so nodes will be called
 worker1, worker2
+
 Note: replace YourKeyName with an existing key name
 
 > dust$ load sample1.yaml
