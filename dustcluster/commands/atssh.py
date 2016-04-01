@@ -114,7 +114,7 @@ def _get_key_location(key, cluster, logger):
     if keyfile:
         ret[key] = keyfile
     else:
-        keypath = raw_input("Location of key %s in region %s:" % (key, cluster.cloud.region))
+        keypath = raw_input("Path to key %s for region %s:" % (key, cluster.cloud.region))
         keymap[str(cluster.cloud.region + '#' + key)] = keypath
         dirty = True
         ret[key] = keypath

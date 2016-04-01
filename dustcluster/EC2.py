@@ -19,7 +19,6 @@ import boto, boto.ec2
 from dustcluster.util import setup_logger
 logger = setup_logger( __name__ )
 
-
 class EC2Cloud(object):
     '''
     provides a connection to EC2 and generates a list of Node objects 
@@ -50,6 +49,9 @@ class EC2Cloud(object):
                                             aws_access_key_id=self.creds_map['aws_access_key_id'], 
                                             aws_secret_access_key=self.creds_map['aws_secret_access_key'], 
                                             )
+
+        if not conn:
+            raise Exception("Invalid region [%s]" % self.region)
 
         logger.debug('Connected, boto version: %s' % conn.APIVersion)
         return conn
@@ -122,7 +124,6 @@ class EC2Cloud(object):
 
         return keyname, keypath
 
-
 class EC2Node(object):
     '''
     describe and control EC2 nodes within an EC2 cloud
@@ -145,6 +146,8 @@ class EC2Node(object):
         self._username = username
         self.is_template_node = False
         self.cloud = cloud or None
+
+        self._ordinal = None
 
     def __repr__(self):
         data = self.disp_data()
@@ -176,6 +179,14 @@ class EC2Node(object):
         self._vm = value
 
     @property
+    def ordinal(self):
+        return self._ordinal
+
+    @ordinal.setter
+    def ordinal(self, value):
+        self._ordinal = value
+
+    @property
     def image(self):
         return self._image
 
@@ -192,14 +203,11 @@ class EC2Node(object):
         self._name = value
 
     @property
-    def clustername(self):
-        if self.hydrated:
-            return self._vm.tags.get('cluster')
-        else:
-            return self._clustername
+    def cluster(self):
+        return self._clustername
 
-    @clustername.setter
-    def clustername(self, value):
+    @cluster.setter
+    def cluster(self, value):
         self._clustername = value
 
     @property
@@ -281,9 +289,6 @@ class EC2Node(object):
                         % (self._name, self._image, self._instance_type) )
 
         res = self.cloud.conn().run_instances(self._image, key_name=self._key, instance_type=self._instance_type)
-        for inst in res.instances:
-            inst.add_tag('name', self._name)
-            inst.add_tag('cluster', self._clustername)
 
     def stop(self):
 
@@ -327,7 +332,9 @@ class EC2Node(object):
             vmdata = [vm.state, vm.id, vm.ip_address, vm.private_ip_address]
             vals += vmdata
         else:
-            vals += ['not_started', '', '', '']
+            startColorRed = "\033[0;31;40m"
+            endColor      = "\033[0m"
+            vals += ['%sabsent%s' % (startColorRed, endColor), '', '', '']
 
         return vals
 

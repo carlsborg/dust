@@ -21,37 +21,40 @@ commands = ['use', 'assign']
 
 def use(cmdline, cluster, logger):
     '''
-    use region [region] | cluster [name] - select a set of nodes to work with
+    use [region] | [cluster name] - select a set of nodes to work with
 
     Notes:
-    Select all nodes in a region, or defined by a filter, or by a cluster config file.
+    Select all nodes in a region, or defined by a cluster config
 
     After the use command, commands like show and cluster wide commands like stop/start/@ for a target = * or None will
     apply to the set of nodes selected.
 
     Examples:
-    use region us-east-1        # work with all nodes in this region 
-    use cluster clusterA        # work with the nodes defined in cluster config clusterA.yaml
+    use us-east-1       # work with all nodes in this region 
+    use clusterA        # work with the nodes defined in cluster config saved as ./dustcluster/clusters/clusterA.yaml
     '''
 
     args = cmdline.split()
 
-    usage = "use region [region] | cluster [cluster_name]"
+    usage = "use [region] | [cluster_name]"
     if not args:
         logger.error(usage)
         return
 
-    if args[0] == "region":
-        use_region(args, cluster, logger)
-    elif args[0] == "cluster":
-        use_cluster(args, cluster, logger)
-    else:
-        logger.error(usage)
+    try:
+        if args[0] in cluster.clusters:
+            use_cluster(args, cluster, logger)
+        else:
+            use_region(args, cluster, logger)
 
+    except Exception, e:
+        logger.exception(e)
+        logger.error("Error using cluster or region : [%s]" % args[0])
+        
 
 def assign(cmdline, cluster, logger):
     '''
-    assign [filter] - assign the nodes from [filter] to a new cluster
+    assign filter [cluster] - assign the nodes from a filter expression to a new or existing cluster
 
     Notes:
     Applies the filter to nodes in the current region, asks for ssh details, 
@@ -63,6 +66,7 @@ def assign(cmdline, cluster, logger):
     Examples:
     assign tags="aws:cloudformation:stack-name":ClusterA
     assign tags="*cloudformation*":ClusterA
+    assign key=prodkey ClusterA
     '''
 
     args = cmdline.split()
@@ -72,13 +76,29 @@ def assign(cmdline, cluster, logger):
         logger.error(usage)
         return
 
-    target = args[0]
-    target_nodes = cluster.any_nodes_from_target(target)
+    filter_exp = args[0]
+    target_nodes = cluster.any_nodes_from_target(filter_exp)
 
     if not target_nodes:
         return
 
+    target_cluster = ""
+    if len(args) > 1:
+        target_cluster = args[1]
+
     cluster.show(target_nodes)
+
+    append_nodes = False
+    if target_cluster in cluster.clusters:
+        append_nodes(filter_exp, target_nodes, target_cluster, cluster, logger)
+    else:
+        write_new_cluster(filter_exp, target_nodes, target_cluster, cluster, logger)
+
+def append_nodes(target, target_nodes, target_cluster, cluster, logger):
+    print "TBD"
+    pass
+
+def write_new_cluster(filter_exp, target_nodes, target_cluster, cluster, logger):
 
     loginuser = raw_input("Ssh login user:")
     cloud = dict([
@@ -86,23 +106,23 @@ def assign(cmdline, cluster, logger):
                 ('region' , cluster.cloud.region)
              ])
 
+    if target_cluster:
+        name = target_cluster
+    else:
+        name = raw_input("Name this cluster:")
 
-    name = raw_input("Name this cluster:")
- 
     # write a new yaml template to ./dustcluster templates
     cluster_props = dict([
                     ('name', name),
-                    ('filter' , target)
+                    ('filter' , filter_exp)
                     ])
 
     nodes = []
     for i, tnode in enumerate(target_nodes):
         node = dict()
         node['nodename'] = deduce_node_name(tnode, i)
-        node['instance_type'] = str(tnode.instance_type)
-        node['image'] = str(tnode.image)
         node['username'] = loginuser
-        node['selector'] = 'id=%s' % str(tnode.id)
+        node['selector'] = deduce_selector(tnode, i)
         nodes.append(node)
 
     template = dict([   ('cloud', cloud),
@@ -123,27 +143,19 @@ def assign(cmdline, cluster, logger):
             logger.info("Wrote cluster config to %s. Edit the file to rename nodes from defaults %s.. %s" 
                         % (ret,  nodes[0].get('nodename'), nodes[-1].get('nodename')))
 
-            cluster.switch_to_cluster(name)
+            #cluster.switch_to_cluster(name)
+            cluster.invalidate_cache()  # we want refresh to pick up the new names
 
 
 def use_cluster(args, cluster, logger):
 
-    if len(args) < 2:
-        logger.error("use cluster [clustername]. e.g. use cluster clusterA.yaml")
-        return
-
-    cluster_name = args[1]
-
+    cluster_name = args[0]
     cluster.switch_to_cluster(cluster_name)
 
 
 def use_region(args, cluster, logger):
 
-    if len(args) < 2:
-        logger.info("Current region is %s" % cluster.region)
-        return
-
-    new_region = args[1]
+    new_region = args[0]
     cloud_data = { 'provider': 'ec2', 'region' : new_region }
 
     cluster.unload_cur_cluster()
@@ -153,9 +165,17 @@ def use_region(args, cluster, logger):
 
 def deduce_node_name(node, i):
 
-    for tag in node.tags.keys():
-        if tag.lower() == 'name':
+    for tag,val in node.tags.items():
+        if tag.lower() == 'name' and val.strip():
             return str(node.tags[tag])
 
     return "node%d" % i
+
+def deduce_selector(node, i):
+
+    for tag,val in node.tags.items():
+        if tag.lower() == 'name' and val.strip():
+            return "tags=%s:%s" % ( "name", str(node.tags[tag]) )
+
+    return 'id=%s' % str(node.id)
 

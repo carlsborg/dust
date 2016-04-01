@@ -60,7 +60,7 @@ class Cluster(object):
     def __init__(self, config_data):
 
         self.cloud = None
-        self.nodecache = None # invalidated on load template/start/stop/terminate/etc
+        self.nodecache = dict() # invalidated on load template/start/stop/terminate/etc
         self.region = None
 
         self.dust_config_data = config_data
@@ -93,8 +93,9 @@ class Cluster(object):
                 raise Exception("Bad config.")
 
     def invalidate_cache(self):
-        if self.nodecache:
-            self.nodecache = None
+
+        if self.nodecache.get(self.cloud.region):
+            del self.nodecache[self.cloud.region]
 
     def load_commands(self):
         '''
@@ -181,17 +182,6 @@ class Cluster(object):
         return template_file
 
 
-    #def load_template(self, config_file):
-
-        #self.cloud, self.template, self.region = loadcnf_yaml.load_template(config_file, creds_map=self.dust_config_data)
-        #self.invalidate_cache()
-
-    #def load_template_from_yaml(self, str_yaml):
-
-        #self.cloud, self.template, self.region = loadcnf_yaml.load_template_from_yaml(str_yaml, creds_map=self.dust_config_data)
-        #self.invalidate_cache()
-        #logger.info("To unload this cluster do $use %s" % self.cloud.region)
-
     def init_default_provider(self, dust_config_data):
 
         default_region = dust_config_data.get("region")
@@ -221,8 +211,12 @@ class Cluster(object):
 
         self.init_cloud_provider(cloud_data)
 
-        cluster_nodes, num_absent_nodes = self.resolve_cluster_nodes()
+        cluster_nodes = self.get_current_nodes()
+
+        logger.debug(cluster_nodes)
+
         num_unnamed_nodes = len([node for node in cluster_nodes if not node.name])
+        num_absent_nodes = len([node for node in cluster_nodes if not node.hydrated])
 
         self.show(cluster_nodes)
 
@@ -255,9 +249,10 @@ class Cluster(object):
         if provider.lower() == 'ec2':
             key = ('ec2',cloudregion)
             cloud_provider = self.provider_cache.get(key) 
-   
+
             if not cloud_provider:
                 cloud_provider = EC2Cloud(creds_map=self.dust_config_data, region=cloudregion)
+                cloud_provider.connect()
                 self.provider_cache[key] = cloud_provider
         else:
             raise Exception("Unknown cloud provider [%s]." % provider)
@@ -276,8 +271,6 @@ class Cluster(object):
     def unload_cur_cluster(self):
         ''' unload a cluster template ''' 
         self.cur_cluster = ""
-        self.cloud = None
-        self.region = None
         self.invalidate_cache()
 
 
@@ -305,12 +298,6 @@ class Cluster(object):
 
         except Exception, ex:
             logger.error('Error getting default keys: %s' % ex)
-
-
-    def set_template(self, cloud):
-        ''' set a cluster template ''' 
-        self.cloud = cloud
-        self.invalidate_cache()
 
 
     def get_user_data(self, section):
@@ -345,28 +332,12 @@ class Cluster(object):
             logger.error('Internal error. No cloud provider set.')
             return
 
-        if self.cur_cluster:
-            cur_cluster_config = self.clusters[self.cur_cluster]
-            cluster_props = cur_cluster_config.get('cluster')
-            name = cluster_props.get('name')
-            if not name:
-                cluster_filter = cluster_props.get('filter')
-            logger.info( "Showing nodes for cluster [%s] in region [%s]" % (name or cluster_filter, self.cloud.region))
-        else:
-            logger.info( "All nodes in current region: %s" % self.cloud.region)
-
         # get node data
         if not nodes:
             logger.debug("No nodes to show")
             return []
 
-        header_data, header_fmt = nodes[0].disp_headers()
-
-        node_data = [node.disp_data() for node in nodes]
-
-        node_extended_data = []
-        if extended:
-            node_extended_data = [node.extended_data() for node in nodes]
+        logger.info("Nodes in region: %s" % self.cloud.region)
 
         # render node data
         startColorGreen = "\033[0;32;40m"
@@ -375,22 +346,39 @@ class Cluster(object):
         endColor        = "\033[0m"
 
         try:
+            header_data, header_fmt = nodes[0].disp_headers()
 
             print startColorGreen
-            print " ".join(header_fmt) % tuple(header_data)
+            print "   ", " ".join(header_fmt) % tuple(header_data)
             print endColor
 
-            print startColorCyan
-            for i, datum in enumerate(node_data):
-                print " ".join(header_fmt) % tuple(datum)
-                if node_extended_data:
-                    #ext_data = ",".join("%s:%s" % (k,v) for k,v in extended_node_data[i].items())
-                    #print (header_fmt[0] % " "), startColorBlue, ext_data, startColorCyan
-                    for k,v in node_extended_data[i].items():
-                        print startColorBlue,header_fmt[0] % "", k, ":", v
-                    print startColorCyan
+            prev_cluster_name = "_"
+            for node in nodes:
 
-            print endColor
+                if node.cluster != prev_cluster_name:
+                    if node.cluster:
+                        cluster_config = self.clusters[node.cluster]
+                        cluster_props = cluster_config.get('cluster')
+                        name = cluster_props.get('name')
+                        cluster_filter = cluster_props.get('filter')
+                        print endColor
+                        if extended:
+                            print( "Cluster [%s] (%s)" % (name, cluster_filter))
+                        else:
+                            print( "%s" % (name))
+                        prev_cluster_name = name or cluster_filter
+                    else:
+                        print endColor
+                        print( "Unassigned:" )
+                        name = "Unassigned"
+                        prev_cluster_name = None
+
+                print startColorCyan,
+                print "    ", " ".join(header_fmt) % tuple(node.disp_data())
+                if extended:
+                    for k,v in node.extended_data().items():
+                        print startColorBlue, header_fmt[0] % "", k, ":", v
+                    print endColor
 
         finally:
             print endColor
@@ -461,28 +449,132 @@ class Cluster(object):
         return filtered
 
 
-    def resolve_cluster_nodes(self):
-        ''' return a list of cloud nodes that match the current cluster filter'''
+    def _find_matching_node(self, node_props, cluster_nodes):
+        ''' using node_props.selector, find the matching node in cluster_nodes ''' 
+
+        # filter by node filter
+        filter_value = node_props.get('selector')
+        nodename = node_props.get('nodename')
+
+        if filter_value:
+            filterkey, filterval = filter_value.split("=")
+        else:
+            filterkey, filterval = "tags", "name:%s" % nodename
+
+        logger.debug("matching template node filters [%s=%s]to cluster nodes" % (filterkey, filterval))
+        matching_nodes = self._filter(cluster_nodes, filterkey, filterval)
+
+        return matching_nodes
+
+    def get_current_nodes(self):
+        ''' same as get_current_nodes_by_cluster but flattens the map ''' 
+
+        cur_nodes = self.get_current_nodes_by_cluster()
+
+        # flatten
+        ret_nodes = []
+        for cluster_name, nodelist in cur_nodes.iteritems():
+            ret_nodes.extend(nodelist)
+
+        ret_nodes = sorted(ret_nodes, key =lambda x: x.cluster)
+
+        return ret_nodes
+
+
+    def get_current_nodes_by_cluster(self):
+        ''' 
+            return nodes matched to all clusters in this region
+            if nodes are in the cluster config but not in the cloud, it creates nodes in state "absent"
+            returns { clustername : (nodes, absentnodes) }
+        '''
 
         startColorGreen = "\033[0;32;40m"
         endColor        = "\033[0m"
 
-        # refresh nodes state from cloud
-        if self.nodecache:
+        if self.nodecache.get(self.cloud.region):
             logger.info("Retrieved [%d] nodes %sfrom cache%s" % (len(self.nodecache), startColorGreen, endColor))
-            nodes = self.nodecache
+            nodes = self.nodecache.get(self.cloud.region)
         else:
             nodes = self.cloud.refresh()
             logger.info("Retrieved [%d] nodes %sfrom cloud provider%s" % (len(nodes), startColorGreen, endColor))
-            self.nodecache = nodes
+            self.nodecache[self.cloud.region] = nodes
 
-        if not self.cur_cluster:    # region selected, so show all nodes
-            return nodes, len(nodes)
+        clusters = []
+        if self.cur_cluster:
+            clusters = [self.cur_cluster]
+        else:
+            clusters = [cluster_name for cluster_name, cluster in self.clusters.items() if cluster.get('cloud').get('region') == self.cloud.region]
+
+        ret_nodes = dict()
+        ret_nodes['Unassigned'] =  list()
+        for cluster_name in self.clusters:
+            ret_nodes[cluster_name] = list()
+
+        # iterate through configured clusters
+        for cluster_name in clusters:
+
+            cluster_nodes = self.get_cluster_nodes(nodes, cluster_name)
+
+            for node in cluster_nodes:
+                node.cluster = cluster_name
+
+            cluster = self.clusters[cluster_name]
+            cluster_props = cluster.get('cluster')
+            cluster_node_props = cluster.get('nodes')
+
+            for node_props in cluster_node_props:
+                matched_nodes = self._find_matching_node(node_props, cluster_nodes)
+
+                logger.debug("Found %s matching nodes for %s:%s", len(matched_nodes), 
+                                        cluster_name, node_props.get('selector'))
+
+                if matched_nodes:
+                    for node in matched_nodes:
+
+                        node.name = node_props.get('nodename')
+                        username = node_props.get('username')
+                        if username:
+                            node.username = username
+                        keyfile = node_props.get('keyfile')
+                        if keyfile:
+                            node.keyfile = keyfile
+
+                        #if node.cluster:
+                        #    logger.warning("node [%s] is configured in more than one cluster ([%s], [%s])" % 
+                        #                        (node.name, node.cluster,cluster_props.get('name')))
+
+                        node.cluster = cluster_props.get('name')
+                        ret_nodes[cluster_name].append(node)
+                else:
+                    logger.debug("Creating absent node for %s" % node_props.get('selector'))
+                    node_args = deepcopy(node_props)
+                    if node_args.get('selector'):
+                        node_args.pop('selector')
+                    abs_node = self.cloud.create_absent_node(**node_args)
+                    abs_node.cluster = cluster_props.get('name')
+                    ret_nodes[cluster_name].append(abs_node)
+
+            # sweep for non configered cluster nodes
+            for node in cluster_nodes:
+                if not node.name:
+                    ret_nodes[cluster_name].append(node)
+
+        # sweep for unassigned nodes
+        if not self.cur_cluster:
+            for node in nodes:
+                if not node.cluster:
+                    ret_nodes['Unassigned'].append(node)
+
+        return ret_nodes
+
+
+    def get_cluster_nodes(self, nodes, cluster_name):
+        ''' filter nodes by cluster filter '''
+
+        cur_cluster_config = self.clusters.get(cluster_name)
 
         # filter by cluster filter
         filterkey, filterval = "", ""
-
-        cur_cluster_config = self.clusters.get(self.cur_cluster)
 
         if cur_cluster_config.get('cluster'):
             cluster_props = cur_cluster_config.get('cluster')
@@ -491,35 +583,35 @@ class Cluster(object):
                 name = cluster_props.get('name')
                 if name:
                     filterkey, filterval = 'tags', ("cluster:%s" % name)
+                else:
+                    raise Exception("No cluster filter or name configured in cluster %s" % cluster_name)
             elif '=' in cluster_filter:
                 filterkey, filterval = cluster_filter.split("=")
             else:
                 raise Exception("Cluster template must have a name or a filter of the form key=val. Got [%s]" % cluster_filter)
 
-        if filterkey and filterval:
-            logger.debug("Filtering to cluster with %s=%s" % (filterkey, filterval)) 
-            cluster_nodes = self._filter(nodes, filterkey, filterval)
-        else:
-            cluster_nodes = nodes
+        logger.debug("Filtering to cluster with %s=%s" % (filterkey, filterval)) 
+        cluster_nodes = self._filter(nodes, filterkey, filterval)
 
-        # name the nodes from the cluster template
-        cluster_nodes, num_absent_nodes = self.match_nodes_to_cluster_config(cluster_nodes, cur_cluster_config)
-
-        return cluster_nodes, num_absent_nodes
+        return cluster_nodes
 
 
     def resolve_target_nodes(self, op='operation', target_node_name=None):
         '''
             given a target string, filter nodes from cloud provider and create a list of target nodes to operate on
-            if a cluster is being used, filter by cluster selector first
+            filter by all clusters
         '''
         if not self.cloud:
             raise Exception('Internal error: No cloud provider loaded.')
 
-        cluster_nodes, num_absent_nodes = self.resolve_cluster_nodes()
+        cluster_nodes = self.get_current_nodes()
 
         # filter by target string 
         # target string can be a name wildcard or filter expression with wildcards
+
+        if target_node_name == '*':
+            return cluster_nodes
+
         filterkey, filterval = "", ""
         if target_node_name:
             if '=' in target_node_name:
@@ -542,59 +634,6 @@ class Cluster(object):
             logger.info( 'no nodes found that match filter %s=%s' % (filterkey, filterval) )
 
         return target_nodes
-
-
-    def match_nodes_to_cluster_config(self, cluster_nodes, cluster_config):
-        '''
-        do an outer join of the template nodes and cloud nodes using the 
-        node filter expression as the key.
-
-        assumes the list of nodes is already filtered by cluster filter
-        '''
-
-        template_nodes = cluster_config.get('nodes')
-        if not template_nodes:
-            return cluster_nodes, len(cluster_nodes)
-
-        absent_nodes = []
-
-        for i, template_node in enumerate(template_nodes):
-
-            filter_value = template_node.get('selector')
-            nodename = template_node.get('nodename')
-
-            if filter_value:
-                filterkey, filterval = filter_value.split("=")
-            else:
-                filterkey, filterval = "tags", "name:%s" % nodename
-
-            logger.debug("matching template node filters [%s=%s]to cluster nodes" % (filterkey, filterval))
-            matching_nodes = self._filter(cluster_nodes, filterkey, filterval)
-        
-            logger.debug("Found %s matching nodes out of %d for this filter" % (len(matching_nodes), len(cluster_nodes)) )
-
-            cluster_props = cluster_config.get('cluster')
-
-            if not matching_nodes:
-                node_args = deepcopy(template_node)
-                if node_args.get('selector'):
-                    node_args.pop('selector')
-                abs_node = self.cloud.create_absent_node(**node_args)
-                abs_node.clustername = cluster_props.get('name')
-                absent_nodes.append(abs_node)
-
-            for matching_node in matching_nodes:
-                matching_node.name = nodename
-                username = template_node.get('username')
-                if username:
-                    matching_node.username = username
-                keyfile = template_node.get('keyfile')
-                if keyfile:
-                    matching_node.keyfile = keyfile
-
-                matching_node.clustername = cluster_props.get('name')
-
-        return cluster_nodes + absent_nodes, len(absent_nodes)
 
 
     def running_nodes_from_target(self, target_str):

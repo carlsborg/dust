@@ -13,7 +13,7 @@
 ''' dust commands to start/stop/terminate nodes '''
 
 # export commands
-commands  = ['show', 'showex', 'refresh', 'start', 'stop', 'terminate', 'region']
+commands  = ['show', 'showex', 'refresh', 'start', 'stop', 'terminate']
 
 
 def showex(cmdline, cluster, logger):
