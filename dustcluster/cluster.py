@@ -181,6 +181,12 @@ class Cluster(object):
 
         return template_file
 
+    def delete_cluster_config(self, name):
+        template_file = "%s.yaml" % name
+        template_file = os.path.join(self.clusters_dir, template_file)
+        os.remove(template_file)
+        logger.info("Deleted cluster config: %s" % template_file)
+
 
     def init_default_provider(self, dust_config_data):
 

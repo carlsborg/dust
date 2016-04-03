@@ -240,12 +240,12 @@ worker1, worker2
 
 Note: replace YourKeyName with an existing key name
 
-> dust$ load sample1.yaml
+> dust$ cluster create sample1.yaml
 
 This dumps the cloudformation template for review, validates it from the cloud, and creates a stack.
-See the creation status of this cluster with $status stackname
+See the creation status of this cluster with $cluster status stackname
 
-> dust$ status sample1
+> dust$ cluster status sample1
 
 Shows events from the cloudformation create:
 
@@ -285,6 +285,13 @@ web
 ```
 
 Life is good.
+
+You can list all clusters, and delete a cluster with:
+
+> dust$ cluster delete slurm1
+
+> dust$ cluster list # show clusters by region
+
 
 **Note on authentication**:
 
