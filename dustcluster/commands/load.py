@@ -43,6 +43,27 @@ def load(cmdline, cluster, logger):
         nodes = expand_clones(nodes)
         obj_yaml['nodes'] = nodes
 
+        # create a security group
+        node_sec_group = ec2.SecurityGroup('DustNodeSG')
+        node_sec_group.GroupDescription = "Allow cluster nodes to access each other"
+        cfn_template.add_resource(node_sec_group)
+
+        intracluster_sec_group = ec2.SecurityGroupIngress('DustIntraClusterSG')
+        intracluster_sec_group.GroupName = Ref(node_sec_group)
+        intracluster_sec_group.FromPort = 0 
+        intracluster_sec_group.ToPort = 65535
+        intracluster_sec_group.SourceSecurityGroupName = Ref(node_sec_group)
+        intracluster_sec_group.IpProtocol = 'tcp'
+        cfn_template.add_resource(intracluster_sec_group)
+
+        ssh_sec_group = ec2.SecurityGroupIngress('DustSshSG')
+        ssh_sec_group.GroupName = Ref(node_sec_group)
+        ssh_sec_group.FromPort = 22
+        ssh_sec_group.ToPort = 22
+        ssh_sec_group.CidrIp = "0.0.0.0/0"
+        ssh_sec_group.IpProtocol = 'tcp'
+        cfn_template.add_resource(ssh_sec_group)
+
         for node in nodes:
             nodename = node.get('nodename')
             instance = ec2.Instance(nodename, 
@@ -51,8 +72,12 @@ def load(cmdline, cluster, logger):
             keyname = node.get('key')
             if keyname:
                 instance.KeyName = keyname
+            else:
+                logger.error("No keyname provided for node %s" % nodename)
+                return
             instance.ImageId = node.get('image')
             instance.InstanceType = node.get('instance_type')
+            instance.SecurityGroups = [ Ref(node_sec_group) ]
             cfn_template.add_resource(instance)
 
         # save it to ./dustcluster/clusters/name_region.cfn

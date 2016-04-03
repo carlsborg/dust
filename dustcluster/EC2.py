@@ -358,6 +358,7 @@ class EC2Node(object):
 
             ret['launch_time'] = self._vm.launch_time
             ret['vpc:subnet'] = "%s:%s" % (self._vm.vpc_id, self._vm.subnet_id)
+            ret['groups'] = ",".join(str(grp.name) for grp in self._vm.groups)
 
         return ret
 

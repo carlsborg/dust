@@ -11,6 +11,7 @@ Status:
 
 [Installation and quick start](INSTALL.md)
 
+
 Table of Contents
 =================
 
@@ -19,12 +20,11 @@ Table of Contents
     * [Working with existing nodes](#working-with-existing-nodes)
       * [One time setup](#one-time-setup)
     * [Start a new cluster](#start-a-new-cluster)
-    * [Target a set of nodes with wildcards and filter expressions](#target-a-set-of-nodes-with-wildcards-and-filter-expressions)
+    * [Target nodes with wildcards and filter expressions](#target-nodes-with-wildcards-and-filter-expressions)
     * [Cluster ssh to a set of nodes](#cluster-ssh-to-a-set-of-nodes)
-    * [These are demultiplexed fully interactive ssh shells !](#these-are-demultiplexed-fully-interactive-ssh-shells-)
-    * [Run vim or top on a single node, with the same ssh session.](#run-vim-or-top-on-a-single-node-with-the-same-ssh-session)
-    * [Add custom functionality with stateful drop-in python commands](#add-custom-functionality-with-stateful-drop-in-python-commands)
-
+      * [These are demultiplexed fully interactive ssh shells !](#these-are-demultiplexed-fully-interactive-ssh-shells-)
+      * [Run vim or top on a single node, with the same ssh session.](#run-vim-or-top-on-a-single-node-with-the-same-ssh-session)
+    * [Add stateful drop-in python commands](#add-stateful-drop-in-python-commands)
 
 
 
@@ -139,7 +139,7 @@ Name this cluster slurm1
 
 Edit the cluster config file for nodenames if needed.
 
-Now you can perform cluster operations targeting nodes with the local names and wildcards.
+Now you can perform cluster ssh operations.
 
 > show
 
@@ -159,8 +159,8 @@ slurm1
       node2        t2.nano      running      i-b3b1b029 52.87.183.163   172.31.57.33  
 ```
 
-Use $showex to examine tags and properties for the unassigned nodes and assign them to a cluster. If there are no
-tags set, you can tag them with:
+We still have some unassigned nodes. Use $showex to examine tags and properties for 
+the unassigned nodes and assign them to a cluster. If there are no usable tags, you can tag the nodes with:
 
 > dust$ tag id=i-a65f5f3c cluster-name=webtest
 
@@ -191,43 +191,23 @@ slurm1
       node2        t2.nano      running      i-b3b1b029 52.87.183.163   172.31.57.33   
 
 webtest
-      web1        t2.micro     running      i-a65f5f3c 52.91.213.83    172.31.56.107  
-      web2        t2.micro     running      i-a55f5f3f 54.173.124.145  172.31.56.108  
+      web1        t2.micro     running      i-a65f5f3c 52.91.213.83    172.31.56.107 
+      web2        t2.micro     running      i-a55f5f3f 54.173.124.145  172.31.56.108 
 ```
 
-To avoid name conflicts work with a single cluster:
-
-> dust$ use slurm1
-
-> dust$ show
-
-```
-dust:2016-04-01 23:36:47,009 | Nodes in region: us-east-1
-
-    Name         Instance     State        ID         ext_IP          int_IP         
-
-
-slurm1
-      node0        t2.nano      running      i-b4b1b02e 52.205.250.99   172.31.60.117  
-      node1        t2.nano      running      i-92aeaf08 54.174.251.139  172.31.58.157  
-      node2        t2.nano      running      i-b3b1b029 52.87.183.163   172.31.57.33   
-```
-
-
-Now all global operations (without a filter or with filter=\*)
-will apply to only these nodes:
-
-> dust$ stop # stops all nodes in cluster slurm1
-
-> dust$ stop *  # same
-
-> dust$ start # starts all nodes in cluster slurm1
+These cluster configs are in  ~/.dustcluster/clusters
 
 ### Start a new cluster
 
-Optionally there is support to sync a very minimal cluster spec to the cloud. The load command uses troposphere
-to convert a cluster config of the form below to an AWS cloudformation template, and then uses the cloudformation apis
-to start the cluster.
+Optionally there is support to sync a very minimal cluster spec to the cloud. 
+
+The $load command uses troposphere to convert a cluster config of the form below to an AWS cloudformation template, 
+and then uses the cloudformation apis to start the cluster.
+
+Firewall/ec2 security groups are configured to:
+- allow incoming tcp connections on all ports between nodes
+- allow incoming ssh connections on port 22 from the outside
+- allow all outgoing connections
 
 sample1.yaml
 
@@ -310,14 +290,12 @@ Life is good.
 
 Only key based authentication is supported. You can specify the key or keyfile in the cluster config under each node.
 
-### Target a set of nodes with wildcards and filter expressions
+### Target a set of nodes
 
-Once you have loaded a cluster config with "$use cluster clustername", nodes now have
-friendly names and you can use nodename wildcards as a target:
+*By node name*
 
-The basic node operations are start/stop/terminate
-
-with wildcards:
+Once you have assigned nodes to a cluster, nodes now have friendly names and you can use 
+nodename wildcards as a target for node operations or ssh operations.
 
 > dust$ stop worker\*
 
@@ -325,24 +303,74 @@ with wildcards:
 
 > dust$ terminate worker[0-2]
 
-with filter expressions:
+> dust$ stop                    # no target or * means all nodes
 
-> dust$ start state=stopped
+
+*By filter expression*
+
+> dust$ show state=stopped
+
+> dust$ showex key=*Prod*
 
 > dust$ start state=stop*       # filters can have wildcards
 
-> dust$ stop tags=env:dev
+> dust$ show tags=owner:devops
 
-The general form for node opertions is
+> dust$ stop tags=env:*       # tags can have wildcards too
 
-> start/stop/terminate [target]
 
-No target implies all nodes.
+*By cluster name*
+
+> dust$ showex cluster=sample1
+
+> dust$ stop cluster=slurm1
+
+
+### Using a working set 
+
+*Restrict the working set of nodes to the cluster slurm1*
+
+> dust$ use slurm1
+
+> dust$ show
+
+```
+dust:2016-04-01 23:36:47,009 | Nodes in region: us-east-1
+
+    Name         Instance     State        ID         ext_IP          int_IP         
+
+
+slurm1
+      node0        t2.nano      running      i-b4b1b02e 52.205.250.99   172.31.60.117  
+      node1        t2.nano      running      i-92aeaf08 54.174.251.139  172.31.58.157  
+      node2        t2.nano      running      i-b3b1b029 52.87.183.163   172.31.57.33   
+```
+
+Now all global operations (without a filter or with filter=\*)
+will apply to only these nodes:
+
+> dust$ stop # stops all nodes in cluster slurm1
+
+> dust$ stop *  # same
+
+> dust$ start # starts all nodes in cluster slurm1
+
+> dust$ @ sudo tail /var/log/audit  # invoke sudo tail on all nodes
+
+
+*Revert to everything in region us-east-1*
+
+> dust$ use us-east-1
 
 
 ### Cluster ssh to a set of nodes
 
-Send commands to parallel bash shells with the @[target] operator
+Send commands to parallel bash shells with the "at target" @[target] operator. 
+No target means all nodes in the working set.
+
+Execute 'dmesg | tail' over ssh on all $used nodes:
+
+> dust$ @ dmesg | tail
 
 Execute 'uptime' over ssh on a set of nodes named worker\* with:
 
@@ -351,6 +379,17 @@ Execute 'uptime' over ssh on a set of nodes named worker\* with:
 Execute 'uptime' over ssh on all nodes with tag env=dev
 
 > dust$ @tags=env:dev uptime
+
+Execute 'uptime' over ssh on all nodes in cluster named slurm:
+
+> dust$ @cluster=slurm1 ls /opt
+
+or
+
+> dust$ use slurm1
+
+> dust$ @ ls /opt
+
 
 The general form for ssh is:
 
@@ -406,7 +445,7 @@ Or filter expressions:
 [worker2]
 ```
 
-### These are demultiplexed fully interactive ssh shells !
+#### These are demultiplexed fully interactive ssh shells !
 
 So this works:
 
@@ -466,7 +505,7 @@ sends a Y to all the nodes named work\* and the apt-get script continues.
 
 (There are commands to drive Ansible playbooks coming soon)
 
-### Run vim or top on a single node, with the same ssh session.
+#### Run vim or top on a single node, with the same ssh session.
 
 > dust$ @worker2
 
@@ -489,7 +528,7 @@ When done, log out of the ssh shell ($exit) or keep it going in the background (
 buffered commands or raw shell mode.
 
 
-### Add custom functionality with stateful drop-in python commands
+### Add stateful drop-in python commands
 
 To add functionality, drop in a python file implementing new commands into dustcluster/commands.
 

@@ -491,9 +491,10 @@ class Cluster(object):
         startColorGreen = "\033[0;32;40m"
         endColor        = "\033[0m"
 
-        if self.nodecache.get(self.cloud.region):
-            logger.info("Retrieved [%d] nodes %sfrom cache%s" % (len(self.nodecache), startColorGreen, endColor))
-            nodes = self.nodecache.get(self.cloud.region)
+        nodecache_nodes = self.nodecache.get(self.cloud.region)    
+        if nodecache_nodes:
+            logger.info("Retrieved [%d] nodes %sfrom cache%s" % (len(nodecache_nodes), startColorGreen, endColor))
+            nodes = nodecache_nodes
         else:
             nodes = self.cloud.refresh()
             logger.info("Retrieved [%d] nodes %sfrom cloud provider%s" % (len(nodes), startColorGreen, endColor))
