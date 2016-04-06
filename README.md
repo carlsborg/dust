@@ -15,23 +15,26 @@ Status:
 Table of Contents
 =================
 
-  * [Rationale](#rationale)
-  * [Usage](#usage)
-    * [Working with existing nodes](#working-with-existing-nodes)
-      * [One time setup](#one-time-setup)
-    * [Start a new cluster](#start-a-new-cluster)
-    * [Target nodes with wildcards and filter expressions](#target-nodes-with-wildcards-and-filter-expressions)
-    * [Cluster ssh to a set of nodes](#cluster-ssh-to-a-set-of-nodes)
-      * [These are demultiplexed fully interactive ssh shells !](#these-are-demultiplexed-fully-interactive-ssh-shells-)
-      * [Run vim or top on a single node, with the same ssh session.](#run-vim-or-top-on-a-single-node-with-the-same-ssh-session)
-    * [Add stateful drop-in python commands](#add-stateful-drop-in-python-commands)
-
+  * [dust](#dust)
+    * [Rationale](#rationale)
+    * [Usage](#usage)
+      * [Getting started](#getting-started)
+      * [Target a set of nodes](#target-a-set-of-nodes)
+      * [Use a working set](#use-a-working-set)
+      * [Cluster ssh to a set of nodes](#cluster-ssh-to-a-set-of-nodes)
+        * [These are demultiplexed fully interactive ssh shells !](#these-are-demultiplexed-fully-interactive-ssh-shells-)
+        * [Run vim or top on a single node, with the same ssh session.](#run-vim-or-top-on-a-single-node-with-the-same-ssh-session)
+      * [Add stateful drop-in python commands](#add-stateful-drop-in-python-commands)
 
 
 ## Rationale
 
-DustCluster is an ssh cluster shell primarily useful for development, prototyping, one-off configuration of (usually ephemeral) EC2 clusters.
-Can be useful when developing custom data engineering stacks.
+DustCluster can be used for working with an existing cluster of EC2 nodes. Or for easily launching a 
+cluster of EC2 nodes of your specification, and then working with them.
+
+This can be useful for developing, prototyping, and one-off configurations of (usually ephemeral) EC2 clusters. 
+Such as when developing custom data engineering stacks.
+
 
 Features:
 * Parallel stateful bash shells over ssh.
@@ -43,14 +46,14 @@ Example:
 Given a cluster with nodes named master, worker1 .. 5, you can do:
 
 ```
-dust$ @ pwd  	# run the pwd command on all running nodes
+dust$ @ pwd  	# run the pwd command over ssh on all running nodes
 
 dust$ @worker* cd /opt/data    # issue stateful shell commands to nodes named worker*
 dust$ put data.dat worker* /opt/data
 dust$ @w* ls
 
 dust$ @state=running cd /etc    # select nodes by property for ssh
-dust$ showex key=MyKey          # select nodes by property for show details
+dust$ show -v key=MyKey          # select nodes by property for show details
 
 dust$ stop worker*         # stop all nodes with a local name worker*
 dust$ terminate worker[4-5] # terminate nodes named worker4, worker5
@@ -58,124 +61,32 @@ dust$ terminate worker[4-5] # terminate nodes named worker4, worker5
 
 ## Usage
 
-### Working with existing nodes
+DustCluster lets you perform cluster-wide parallel ssh and node operations on AWS ec2 instances, using 
+wildcard and filter expressions to target nodes.
 
-Drop into a dust shell, and show all the nodes in the current region
+It also lets you easily bring up a new cluster from a minimal spec, with security groups, placement groups,
+and spot pricing configured, on top of which you can use the cluster ssh feature to set up custom/prototype stacks.
 
-> dust$ show
+All commands you see in dust cluster are implemented as plugins. There is a simple plugin model for adding 
+stateful commands.
 
-```
-dust:2016-04-01 22:55:32,904 | Retrieved [5] nodes from cloud provider
-dust:2016-04-01 22:55:32,904 | Nodes in region: us-east-1
+### Getting started 
 
-    Name         Instance     State        ID         ext_IP          int_IP         
+At a bash prompt, drop into a dust shell:
 
+> bash$ dust
+> dust:2016-04-05 23:41:47,623 | Dust cluster shell, version 0.01. Type ? for help.
 
-Unassigned:
-                   t2.micro     running      i-a65f5f3c 52.91.213.83    172.31.56.107  
-                   t2.micro     running      i-a55f5f3f 54.173.124.145  172.31.56.108  
-                   t2.nano      running      i-b4b1b02e 52.205.250.99   172.31.60.117  
-                   t2.nano      running      i-92aeaf08 54.174.251.139  172.31.58.157  
-                   t2.nano      running      i-b3b1b029 52.87.183.163   172.31.57.33  
-```
+You can then either:
 
-Or show with details:
+1) [Assign existing instances to clusters](docs/assign_to.md)
 
-> dust$ showex
+and/or
 
-```
-dust:dragonex$ showex
-dust:2016-04-01 22:56:27,527 | Retrieved [1] nodes from cache
-dust:2016-04-01 22:56:27,528 | Nodes in region: us-east-1
+2) [Bring up a new cluster from a minimal spec](docs/create_cluster.md) with a single command
 
-    Name         Instance     State        ID         ext_IP          int_IP         
+Both ways, cluster configs are saved to ~/.dustcluster/clusters. and you will henceforth see clusters with named nodes. e.g. 
 
-
-Unassigned:
-              t2.nano      running      i-b4b1b02e 52.205.250.99   172.31.60.117  
-              tags : aws:cloudformation:stack-name=slurm1,aws:cloudformation:stack-id=arn:aws:cloudformation:us-east-1:065319647096:stack/slurm1/018af690-f84e-11e5-94ee-500c20fefad2,aws:cloudformation:logical-id=master
-              image : ami-8fcee4e5
-              hostname : ec2-52-205-250-99.compute-1.amazonaws.com
-              launch_time : 2016-04-01T21:09:27.000Z
-              key : useast1_dustcluster
-              vpc:subnet : vpc-2ce97948:subnet-193d2c32
-
-              ... etc
-```
-
-As of now these nodes show as "Unassigned" to any cluster. In this state you can perform basic node state operations on them:
-
-Use filters to show/start/stop nodes:
-
-> dust$ show state=running
-
-> dust$ stop id=i-e6d4b265
-
-Filter by tag:
-
-> dust$ showex tags=name:node\*
-
-Filter by tag to show the cloud formation stack slurm1:
-
-> dust$ showex tags=aws:cloudformation:stack-name:slurm1
-or
-
-> dust$ showex tags=\*stack-name:slurm1
-
-
-
-#### One time setup
-
-To enable cluster ssh, we assign nodes to a cluster:
-
-> dust$ assign tags=\*cloudformation\*stack-name:slurm1
-
-This selects nodes where tags have key = \*cloudformation\*stack-name and value=slurm1, and saves down a cluster config
-so that you can name nodes and address them by friendly names (as you would in sshconfig).
-
-Name this cluster slurm1
-
-> Wrote cluster config to /home/booda/.dustcluster/clusters/slurm1.yaml.
-
-Edit the cluster config file for nodenames if needed.
-
-Now you can perform cluster ssh operations.
-
-> show
-
-```
-dust:2016-04-01 23:08:31,777 | Nodes in region: us-east-1
-
-    Name         Instance     State        ID         ext_IP          int_IP         
-
-
-Unassigned:
-                   t2.micro     running      i-a65f5f3c 52.91.213.83    172.31.56.107  
-                   t2.micro     running      i-a55f5f3f 54.173.124.145  172.31.56.108  
-
-slurm1
-      node0        t2.nano      running      i-b4b1b02e 52.205.250.99   172.31.60.117  
-      node1        t2.nano      running      i-92aeaf08 54.174.251.139  172.31.58.157  
-      node2        t2.nano      running      i-b3b1b029 52.87.183.163   172.31.57.33  
-```
-
-We still have some unassigned nodes. Use $showex to examine tags and properties for 
-the unassigned nodes and assign them to a cluster. If there are no usable tags, you can tag the nodes with:
-
-> dust$ tag id=i-a65f5f3c cluster-name=webtest
-
-> dust$ tag id=i-a55f5f3f cluster-name=webtest
-
-> dust$ assign tags=cluster-name:webtest
-
-> Name this cluster: webtest
-
-```
-dust:2016-04-01 23:12:17,530 | Wrote cluster config to /home/booda/.dustcluster/clusters/web.yaml.
-```
-
-Optionally edit this file if needed - change names, specify an
-alternate ssh key, etc and reload the clusters with $refresh
 
 > dust$ show
 
@@ -186,120 +97,24 @@ dust:2016-04-01 23:21:01,749 | Nodes in region: us-east-1
 
 
 slurm1
-      node0        t2.nano      running      i-b4b1b02e 52.205.250.99   172.31.60.117  
-      node1        t2.nano      running      i-92aeaf08 54.174.251.139  172.31.58.157  
-      node2        t2.nano      running      i-b3b1b029 52.87.183.163   172.31.57.33   
+      master       t2.small     running      i-b4b1b02e 52.205.250.99   172.31.60.117  
+      worker1      t2.nano      running      i-92aeaf08 54.174.251.139  172.31.58.157  
+      worker2      t2.nano      running      i-b3b1b029 52.87.183.163   172.31.57.33   
 
 webtest
       web1        t2.micro     running      i-a65f5f3c 52.91.213.83    172.31.56.107 
       web2        t2.micro     running      i-a55f5f3f 54.173.124.145  172.31.56.108 
 ```
 
-These cluster configs are in  ~/.dustcluster/clusters
+This shows two clusters called slurm1 and webtest.
 
-### Start a new cluster
-
-Optionally there is support to sync a very minimal cluster spec to the cloud. 
-
-The $load command uses troposphere to convert a cluster config of the form below to an AWS cloudformation template, 
-and then uses the cloudformation apis to start the cluster.
-
-Firewall/ec2 security groups are configured to:
-- allow incoming tcp connections on all ports between nodes
-- allow incoming ssh connections on port 22 from the outside
-- allow all outgoing connections
-
-sample1.yaml
-
-```
-cloud:
-  provider: ec2
-  region: us-east-1
-
-cluster:
-  name: sample1
-
-nodes:
-
-- image: ami-8fcee4e5
-  instance_type: t2.nano
-  nodename: master
-  username: ec2-user
-  key: YourKeyName
-
-- image: ami-8fcee4e5
-  instance_type: t2.nano
-  nodename: worker
-  username: ec2-user
-  key: YourKeyName
-  count: 2
-```
-
-Note: the second node has count = 2, so nodes will be called
-worker1, worker2
-
-Note: replace YourKeyName with an existing key name
-
-> dust$ cluster create sample1.yaml
-
-This dumps the cloudformation template for review, validates it from the cloud, and creates a stack.
-See the creation status of this cluster with $cluster status stackname
-
-> dust$ cluster status sample1
-
-Shows events from the cloudformation create:
-
-```
-dust:dragonex$ status sample1
-dust:2016-03-30 13:52:01,121 | Connecting to cloud formation endpoint in us-east-1
-StackEvent AWS::CloudFormation::Stack sample1 CREATE_IN_PROGRESS
-StackEvent AWS::EC2::Instance master CREATE_IN_PROGRESS
-StackEvent AWS::EC2::Instance worker1 CREATE_IN_PROGRESS
-StackEvent AWS::EC2::Instance master CREATE_IN_PROGRESS
-StackEvent AWS::EC2::Instance worker1 CREATE_IN_PROGRESS
-dust:2016-03-30 13:52:01,636 | ok
-```
-
-You can see the new cluster with $show/ex:
-
-```
-dust:2016-04-01 23:48:57,732 | Nodes in region: us-east-1
-
-    Name         Instance     State        ID         ext_IP          int_IP         
-
-
-sample2
-      master       t2.nano      running      i-8b131311 52.90.188.52    172.31.51.183  
-      worker0      t2.nano      running      i-d115154b 54.152.211.101  172.31.57.213  
-      worker1      t2.nano      running      i-411313db 52.207.253.73   172.31.58.141  
-
-slurm1
-      node0        t2.nano      running      i-b4b1b02e 52.205.250.99   172.31.60.117  
-      node1        t2.nano      running      i-92aeaf08 54.174.251.139  172.31.58.157  
-      node2        t2.nano      running      i-b3b1b029 52.87.183.163   172.31.57.33   
-
-web
-      node0        t2.micro     running      i-a65f5f3c 52.91.213.83    172.31.56.107  
-      node1        t2.micro     running      i-a55f5f3f 54.173.124.145  172.31.56.108  
-
-```
-
-Life is good.
-
-You can list all clusters, and delete a cluster with:
-
-> dust$ cluster delete slurm1
-
-> dust$ cluster list # show clusters by region
-
-
-**Note on authentication**:
-
-Only key based authentication is supported. You can specify the key or keyfile in the cluster config under each node.
+Use show -v and show -vv to see *some* node details and *all* node details respectively.
 
 ### Target a set of nodes
 
-*By node name*
+Most commands take a [target]. e.g. show -v [target] 
+
+**By node name**
 
 Once you have assigned nodes to a cluster, nodes now have friendly names and you can use 
 nodename wildcards as a target for node operations or ssh operations.
@@ -313,29 +128,35 @@ nodename wildcards as a target for node operations or ssh operations.
 > dust$ stop                    # no target or * means all nodes
 
 
-*By filter expression*
+**By filter expression**
 
 > dust$ show state=stopped
 
-> dust$ showex key=*Prod*
-
 > dust$ start state=stop*       # filters can have wildcards
 
-> dust$ show tags=owner:devops
+> dust$ show ip=54.12.*
+
+> dust$ show tags=owner:devops 
 
 > dust$ stop tags=env:*       # tags can have wildcards too
 
+> dust$ show -v launch_time=2016-04-03*
 
-*By cluster name*
 
-> dust$ showex cluster=sample1
+type show -vv [target] to see all the available properties you can filter on.
+
+
+**By cluster name**
+
+> dust$ show -v cluster=sample1
 
 > dust$ stop cluster=slurm1
 
 
-### Using a working set 
 
-*Restrict the working set of nodes to the cluster slurm1*
+### Use a working set
+
+**Restrict the working set of nodes to the cluster slurm1**
 
 > dust$ use slurm1
 
@@ -365,14 +186,14 @@ will apply to only these nodes:
 > dust$ @ sudo tail /var/log/audit  # invoke sudo tail on all nodes
 
 
-*Revert to everything in region us-east-1*
+**Revert to everything in region us-east-1**
 
 > dust$ use us-east-1
 
 
 ### Cluster ssh to a set of nodes
 
-Send commands to parallel bash shells with the "at target" @[target] operator. 
+Invoke commands over parallel bash shells with the "at target" @[target] operator. 
 No target means all nodes in the working set.
 
 Execute 'dmesg | tail' over ssh on all $used nodes:
@@ -537,11 +358,14 @@ buffered commands or raw shell mode.
 
 ### Add stateful drop-in python commands
 
-To add functionality, drop in a python file implementing new commands into dustcluster/commands.
+The plugin model is simple -- it gives you a list of targeted node objects that the command can perform 
+operations on, and a cluster state object which holds boto connections etc.
+
+TBD: plugin model
 
 Out of the box commands: get (cluster download), put (cluster upload), setting up security groups, etc.
-
 Type help or ? inside the dust shell for more
 
 Unrecognized commands drop to the system shell, so you can edit files, run configuration management tools locally
 from the same prompt.
+

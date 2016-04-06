@@ -63,12 +63,6 @@ class EC2Cloud(object):
 
         return self._connection
 
-    def get_cluster_description(self):
-
-        if self.name: 
-            return "cluster '%s' in %s, using key: %s" % (self.name, self.region, self.key)
-        else:
-            return "no cluster defined. using defaults region %s and key %s" % (self.region, self.key)
 
     def refresh(self):
         ''' get nodes/reservations from cloud '''
@@ -131,23 +125,39 @@ class EC2Node(object):
 
     def __init__(self, key="", keyfile="", nodename="", instance_type="", image="",  username='', vm=None, cloud=None):
 
-        self._hydrated = False
-
-        self._name      = nodename
-        self._image     = image
-        self._instance_type = instance_type
-        self._vm        = None
+        self._key = key
         self._keyfile    = keyfile
+        self._name      = nodename
+        self._instance_type = instance_type
+        self._image     = image
+        self._username = username
+        self._vm        = None
+        self.cloud      = cloud
+
+        self._hydrated = False
 
         # for starting new nodes
         self._clustername = None
-        self._key = key
 
-        self._username = username
-        self.is_template_node = False
-        self.cloud = cloud or None
+        self.friendly_names = { 
+                                'image'    : 'image_id', 
+                                'dns_name' : 'public_dns_name', 
+                                'type'     : 'instance_type',
+                                'key'      : 'key_name',
+                                'vpc'      : 'vpc_id',
+                                'ip'       : 'ip_address'
+                               }
 
-        self._ordinal = None
+        self.extended_fields = [ 'dns_name', 'image', 'tags', 'key', 'launch_time', 'vpc', 'groups']
+
+        self.all_fields = ['ami_launch_index', 'architecture', 'block_device_mapping', 'client_token',  
+                    'dns_name', 'ebs_optimized', 'group_name', 'groups', 'hypervisor', 'id', 'image_id', 'instance_profile', 
+                    'instance_type', 'interfaces', 'ip_address', 'kernel', 'key_name', 'launch_time', 
+                    'monitored', 'monitoring_state', 'persistent', 'placement', 'placement_group', 
+                     'placement_tenancy', 'platform', 'previous_state', 'previous_state_code', 'private_dns_name', 'private_ip_address', 
+                    'product_codes', 'public_dns_name', 'ramdisk', 'reason', 'reboot', 'region', 'requester_id', 
+                    'root_device_name', 'root_device_type', 'spot_instance_request_id', 'state', 'state_code', 'state_reason', 
+                    'subnet_id', 'tags', 'virtualization_type', 'vpc_id']
 
     def __repr__(self):
         data = self.disp_data()
@@ -161,11 +171,6 @@ class EC2Node(object):
         self._vm = vm
         self._hydrated = True
 
-    def unhydrate(self, vm):
-        ''' populate template node state from the cloud reservation ''' 
-        self._vm = None
-        self._hydrated = False
-
     @property
     def hydrated(self):
         return self._hydrated
@@ -177,22 +182,6 @@ class EC2Node(object):
     @vm.setter
     def vm(self, value):
         self._vm = value
-
-    @property
-    def ordinal(self):
-        return self._ordinal
-
-    @ordinal.setter
-    def ordinal(self, value):
-        self._ordinal = value
-
-    @property
-    def image(self):
-        return self._image
-
-    @image.setter
-    def image(self, value):
-        self._image = value
 
     @property
     def name(self):
@@ -211,38 +200,20 @@ class EC2Node(object):
         self._clustername = value
 
     @property
-    def instance_type(self):
-        return self._instance_type
-
-    @instance_type.setter
-    def instance_type(self, value):
-        self._instance_type = value
-
-    @property
-    def state(self):
-        return self._vm.state if self._vm else ""
-
-    @property
-    def tags(self):
-        return self._vm.tags if self._vm else {}
-
-    @property
-    def id(self):
-        return self._vm.id if self._vm else ""
-    
-    @property
-    def hostname(self):
-        if self._vm:
-            return self._vm.public_dns_name 
-        return '-' 
-
-    @property
     def username(self):
         return self._username
 
     @username.setter
     def username(self, value):
         self._username = value
+
+    @property
+    def keyfile(self):
+        return self._keyfile
+        
+    @keyfile.setter
+    def keyfile(self, value):
+        self._keyfile = value
 
     @property
     def key(self):
@@ -255,19 +226,6 @@ class EC2Node(object):
     def key(self, value):
         self._key = value
 
-    @property
-    def keyfile(self):
-        return self._keyfile
-        
-    @keyfile.setter
-    def keyfile(self, value):
-        self._keyfile = value
-
-    def assign_vm(self, vm):
-        self._vm  = vm
-
-    def add_handler(self, event, handler):
-        pass
 
     def start(self):
 
@@ -318,10 +276,12 @@ class EC2Node(object):
             self.cloud.conn().stop_instances( instance_ids = instance_ids )
             self.cloud.conn().terminate_instances( instance_ids = instance_ids )
 
+
     def disp_headers(self):
-        headers = ["Name", "Instance", "State", "ID",  "ext_IP", "int_IP"]
+        headers = ["Name", "Type", "State", "ID",  "IP", "int_IP"]
         fmt =     ["%-12s",  "%-12s",  "%-12s",  "%-10s", "%-15s", "%-15s"]
         return headers, fmt
+
 
     def disp_data(self):
 
@@ -338,27 +298,55 @@ class EC2Node(object):
 
         return vals
 
+
+    def get(self, prop_name):
+        ''' return property from the underlying instance '''
+
+        if prop_name == 'name':
+            val = getattr(self, 'name')
+            return val
+
+        if prop_name in self.friendly_names:
+            prop_name = self.friendly_names[prop_name]
+
+        if not self._vm:
+            return ""
+
+        if prop_name == 'groups':
+            return ",".join(str(grp.name) for grp in self._vm.groups)
+        else:
+            return getattr(self._vm, prop_name)
+
+
     def extended_data(self):
         # updated here for showex command error
         ret = {}
 
-        if self.hostname:
-            ret['hostname'] = self.hostname
 
-        if self.image:
-            ret['image'] = self.image
+        for field in self.extended_fields:
+            val = self.get(field)
 
-        if self.vm:
+            if field == 'tags':
+                val =  ",".join( '%s=%s' % (k,v) for k,v in self._vm.tags.items())
 
-            if self._vm.tags:
-                ret['tags'] = ",".join( '%s=%s' % (k,v) for k,v in self._vm.tags.items())
+            if val:
+                ret[field] = val
 
-            if self._vm.key_name:
-                ret['key'] = self._vm.key_name
+        return ret
 
-            ret['launch_time'] = self._vm.launch_time
-            ret['vpc:subnet'] = "%s:%s" % (self._vm.vpc_id, self._vm.subnet_id)
-            ret['groups'] = ",".join(str(grp.name) for grp in self._vm.groups)
+
+    def all_data(self):
+        # updated here for showex command error
+        ret = {}
+    
+        for field in self.all_fields:
+            val = self.get(field)
+
+            if field == 'tags':
+                val =  ",".join( '%s=%s' % (k,v) for k,v in self._vm.tags.items())
+
+            if val:
+                ret[field] = val
 
         return ret
 

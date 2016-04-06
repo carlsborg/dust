@@ -22,7 +22,6 @@ import yaml
 
 from copy import deepcopy
 
-from dustcluster import loadcnf_yaml
 from dustcluster.lineterm import LineTerm
 from pkgutil import walk_packages
 from dustcluster import commands
@@ -381,8 +380,14 @@ class Cluster(object):
 
                 print startColorCyan,
                 print "    ", " ".join(header_fmt) % tuple(node.disp_data())
-                if extended:
-                    for k,v in node.extended_data().items():
+                ext_data = []
+                if extended == 1:
+                    ext_data = node.extended_data().items()
+                elif extended == 2:
+                    ext_data = node.all_data().items()
+
+                if ext_data:
+                    for k,v in ext_data:
                         print startColorBlue, header_fmt[0] % "", k, ":", v
                     print endColor
 
@@ -435,7 +440,7 @@ class Cluster(object):
                 return []
 
             for node in nodes:
-                if self._filter_tags(node.tags, fkey, fval):
+                if self._filter_tags(node.get('tags'), fkey, fval):
                     filtered.append(node)
 
         else:
@@ -444,7 +449,7 @@ class Cluster(object):
             valid = re.compile(regex)
 
             for node in nodes:
-                val =  getattr(node, filterkey, None)
+                val =  node.get(filterkey)
                 if not val:
                     continue
                 logger.debug("trying filter %s on %s..." % (filterval, val))

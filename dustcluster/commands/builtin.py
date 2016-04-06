@@ -13,17 +13,8 @@
 ''' dust commands to start/stop/terminate nodes '''
 
 # export commands
-commands  = ['show', 'showex', 'refresh', 'start', 'stop', 'terminate']
+commands  = ['show', 'refresh', 'start', 'stop', 'terminate']
 
-
-def showex(cmdline, cluster, logger):
-    '''
-    showex  [filter]  - Show extended info on all nodes or filtered nodes
-
-    Show node data from in memory cache. Use $refresh to update cache.  
-    Shows only nodes selected by the use command, if any.
-    '''
-    _show(cmdline, cluster, logger, True)
 
 def show(cmdline, cluster, logger):
     '''
@@ -33,9 +24,22 @@ def show(cmdline, cluster, logger):
     Shows only nodes selected by the use command, if any.
     '''
 
-    _show(cmdline, cluster, logger, False)
+    args = cmdline.split()
+    extended = 0
+    if args and args[0].startswith("-"):
+        if args[0] == "-v":
+            extended = 1
+        elif args[0] == "-vv":
+            extended = 2
+        else:
+            logger.error("Unknown switch %s" % args[0])
+            return
+ 
+        cmdline = " ".join(args[1:])
 
-def _show(cmdline, cluster, logger, extended=False):
+    _show(cmdline, cluster, logger, extended)
+
+def _show(cmdline, cluster, logger, extended=0):
     try:
 
         target_nodes = []
@@ -178,7 +182,7 @@ def get_target_nodes(logger, cluster, target_node_str=None):
 
     target_nodes = cluster.resolve_target_nodes(op='show', target_node_name=target_node_str)
 
-    target_nodes = [node for node in target_nodes if node.state != 'terminated']
+    target_nodes = [node for node in target_nodes if node.get('state') != 'terminated']
 
     return target_nodes
 
