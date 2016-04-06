@@ -185,7 +185,7 @@ class SessionManager(object):
 
     def term_from_node(self, node, keyfile, rawshell=False):
 
-        term = self.session_map.get(node.id)
+        term = self.session_map.get(node.get('id'))
 
         if not term:
             term = SSHTerm(node, keyfile)
@@ -196,7 +196,7 @@ class SessionManager(object):
                 cookie = True
             term.login(cookie)
             self.demux.start(term)
-            self.session_map[node.id] = term
+            self.session_map[node.get('id')] = term
 
         if not term.is_connected():
             logger.info('no ssh connection, logging in')
@@ -239,7 +239,7 @@ class SSHTerm(object):
         return self.transport and self.transport.is_authenticated() and self.transport.is_active()
 
     def login(self, cookie=False):
-        hostname = self.node.hostname
+        hostname = self.node.get('public_dns_name')
         username = self.node.username
 
         logger.debug('hostname=[%s], username=[%s], key=[%s]' % (hostname, username, self.keyfile))

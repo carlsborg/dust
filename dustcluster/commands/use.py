@@ -165,17 +165,18 @@ def use_region(args, cluster, logger):
 
 def deduce_node_name(node, i):
 
-    for tag,val in node.tags.items():
+    for tag,val in node.get('tags').items():  
         if tag.lower() == 'name' and val.strip():
-            return str(node.tags[tag])
+            return str(node.get('tags')[tag])
 
     return "node%d" % i
 
 def deduce_selector(node, i):
 
-    for tag,val in node.tags.items():
+    for tag,val in node.get('tags').items():
         if tag.lower() == 'name' and val.strip():
-            return "tags=%s:%s" % ( "name", str(node.tags[tag]) )
+            return "tags=%s:%s" % ( "name", str(node.get('tags')[tag]) )
 
     return 'id=%s' % str(node.id)
+
 
