@@ -159,6 +159,8 @@ class EC2Node(object):
                     'root_device_name', 'root_device_type', 'spot_instance_request_id', 'state', 'state_code', 'state_reason', 
                     'subnet_id', 'tags', 'virtualization_type', 'vpc_id']
 
+        self.non_instance_fields = ['name', 'username', 'cluster', 'keyfile', 'key']
+
     def __repr__(self):
         data = self.disp_data()
         return ",".join(str(datum) for datum in data)
@@ -302,8 +304,8 @@ class EC2Node(object):
     def get(self, prop_name):
         ''' return property from the underlying instance '''
 
-        if prop_name == 'name':
-            val = getattr(self, 'name')
+        if prop_name in self.non_instance_fields:
+            val = getattr(self, prop_name)
             return val
 
         if prop_name in self.friendly_names:

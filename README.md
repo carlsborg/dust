@@ -31,7 +31,7 @@ DustCluster lets you perform cluster-wide parallel ssh and node operations on AW
 wildcard and filter expressions to target nodes.
 
 It also lets you easily bring up a new cluster from a minimal spec, with security groups, placement groups,
-and spot pricing configured, on top of which you can use the cluster ssh feature to set up custom/prototype stacks.
+and spot pricing configured, on top of which you can use the cluster ssh feature to configure them.
 
 This can be useful for developing, prototyping, and one-off configurations of (usually ephemeral) EC2 clusters.
 Such as when developing custom data engineering stacks.
@@ -62,6 +62,7 @@ All commands you see in dust cluster are implemented as plugins.
 At a bash prompt, drop into a dust shell:
 
 > bash$ dust
+
 > dust:2016-04-05 23:41:47,623 | Dust cluster shell, version 0.01. Type ? for help.
 
 You can then either:
