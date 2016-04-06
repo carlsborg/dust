@@ -36,7 +36,7 @@ def tag(cmdline, cluster, logger):
             return
 
         conn = cluster.cloud.conn()
-        r_ids = [node.id for node in target_nodes]
+        r_ids = [node.get('id') for node in target_nodes]
 
         tagsdict = {}
 
@@ -99,7 +99,7 @@ def untag(cmdline, cluster, logger):
             return
 
         conn = cluster.cloud.conn()
-        r_ids = [node.id for node in target_nodes]
+        r_ids = [node.get('id') for node in target_nodes]
 
         tagsdict = {}
 

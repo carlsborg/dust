@@ -658,7 +658,7 @@ class Cluster(object):
         if not target_nodes:
             return None
 
-        target_nodes = [node for node in target_nodes if node.state == 'running']
+        target_nodes = [node for node in target_nodes if node.get('state') == 'running']
         if not target_nodes:
             logger.info( 'No target nodes are in the running state' )
             return None
