@@ -11,36 +11,30 @@ Status:
 
 [Installation and quick start](INSTALL.md)
 
-
 Table of Contents
 =================
 
-  * [dust](#dust)
-    * [Rationale](#rationale)
-    * [Usage](#usage)
-      * [Getting started](#getting-started)
-      * [Target a set of nodes](#target-a-set-of-nodes)
-      * [Use a working set](#use-a-working-set)
-      * [Cluster ssh to a set of nodes](#cluster-ssh-to-a-set-of-nodes)
-        * [These are demultiplexed fully interactive ssh shells !](#these-are-demultiplexed-fully-interactive-ssh-shells-)
-        * [Run vim or top on a single node, with the same ssh session.](#run-vim-or-top-on-a-single-node-with-the-same-ssh-session)
-      * [Add stateful drop-in python commands](#add-stateful-drop-in-python-commands)
+  * [Rationale](#rationale)
+  * [Getting started](#getting-started)
+  * [Target a set of nodes](#target-a-set-of-nodes)
+  * [Use a working set](#use-a-working-set)
+  * [Cluster ssh to a set of nodes](#cluster-ssh-to-a-set-of-nodes)
+    * [These are demultiplexed fully interactive ssh shells !](#these-are-demultiplexed-fully-interactive-ssh-shells-)
+    * [Run vim or top on a single node, with the same ssh session.](#run-vim-or-top-on-a-single-node-with-the-same-ssh-session)
+  * [Add stateful drop-in python commands](#add-stateful-drop-in-python-commands)
 
 
-## Rationale
 
-DustCluster can be used for working with an existing cluster of EC2 nodes. Or for easily launching a 
-cluster of EC2 nodes of your specification, and then working with them.
+### Rationale
 
-This can be useful for developing, prototyping, and one-off configurations of (usually ephemeral) EC2 clusters. 
+DustCluster lets you perform cluster-wide parallel ssh and node operations on AWS ec2 instances, using
+wildcard and filter expressions to target nodes.
+
+It also lets you easily bring up a new cluster from a minimal spec, with security groups, placement groups,
+and spot pricing configured, on top of which you can use the cluster ssh feature to set up custom/prototype stacks.
+
+This can be useful for developing, prototyping, and one-off configurations of (usually ephemeral) EC2 clusters.
 Such as when developing custom data engineering stacks.
-
-
-Features:
-* Parallel stateful bash shells over ssh.
-* Node selection with wildcards in name, property, or tag -- for ssh or node operations.
-* Commands to bring up a new cluster using cloudformation from a minimal spec via troposphere.
-* Easily extensible -- add new stateful commands.
 
 Example:
 Given a cluster with nodes named master, worker1 .. 5, you can do:
@@ -59,18 +53,11 @@ dust$ stop worker*         # stop all nodes with a local name worker*
 dust$ terminate worker[4-5] # terminate nodes named worker4, worker5
 ```
 
-## Usage
+There is a simple plugin model for adding stateful commands.
+All commands you see in dust cluster are implemented as plugins.
 
-DustCluster lets you perform cluster-wide parallel ssh and node operations on AWS ec2 instances, using 
-wildcard and filter expressions to target nodes.
 
-It also lets you easily bring up a new cluster from a minimal spec, with security groups, placement groups,
-and spot pricing configured, on top of which you can use the cluster ssh feature to set up custom/prototype stacks.
-
-All commands you see in dust cluster are implemented as plugins. There is a simple plugin model for adding 
-stateful commands.
-
-### Getting started 
+### Getting started
 
 At a bash prompt, drop into a dust shell:
 
@@ -85,7 +72,7 @@ and/or
 
 2) [Bring up a new cluster from a minimal spec](docs/create_cluster.md) with a single command
 
-Both ways, cluster configs are saved to ~/.dustcluster/clusters. and you will henceforth see clusters with named nodes. e.g. 
+Both ways, cluster configs are saved to ~/.dustcluster/clusters. and you will henceforth see clusters with named nodes. e.g.
 
 
 > dust$ show
@@ -102,8 +89,8 @@ slurm1
       worker2      t2.nano      running      i-b3b1b029 52.87.183.163   172.31.57.33   
 
 webtest
-      web1        t2.micro     running      i-a65f5f3c 52.91.213.83    172.31.56.107 
-      web2        t2.micro     running      i-a55f5f3f 54.173.124.145  172.31.56.108 
+      web1        t2.micro     running      i-a65f5f3c 52.91.213.83    172.31.56.107
+      web2        t2.micro     running      i-a55f5f3f 54.173.124.145  172.31.56.108
 ```
 
 This shows two clusters called slurm1 and webtest.
@@ -112,11 +99,11 @@ Use show -v and show -vv to see *some* node details and *all* node details respe
 
 ### Target a set of nodes
 
-Most commands take a [target]. e.g. show -v [target] 
+Most commands take a [target]. e.g. show -v [target]
 
 **By node name**
 
-Once you have assigned nodes to a cluster, nodes now have friendly names and you can use 
+Once you have assigned nodes to a cluster, nodes now have friendly names and you can use
 nodename wildcards as a target for node operations or ssh operations.
 
 > dust$ stop worker\*
@@ -136,7 +123,7 @@ nodename wildcards as a target for node operations or ssh operations.
 
 > dust$ show ip=54.12.*
 
-> dust$ show tags=owner:devops 
+> dust$ show tags=owner:devops
 
 > dust$ stop tags=env:*       # tags can have wildcards too
 
@@ -193,7 +180,7 @@ will apply to only these nodes:
 
 ### Cluster ssh to a set of nodes
 
-Invoke commands over parallel bash shells with the "at target" @[target] operator. 
+Invoke commands over parallel bash shells with the "at target" @[target] operator.
 No target means all nodes in the working set.
 
 Execute 'dmesg | tail' over ssh on all $used nodes:
@@ -358,7 +345,7 @@ buffered commands or raw shell mode.
 
 ### Add stateful drop-in python commands
 
-The plugin model is simple -- it gives you a list of targeted node objects that the command can perform 
+The plugin model is simple -- it gives you a list of targeted node objects that the command can perform
 operations on, and a cluster state object which holds boto connections etc.
 
 TBD: plugin model
@@ -368,4 +355,3 @@ Type help or ? inside the dust shell for more
 
 Unrecognized commands drop to the system shell, so you can edit files, run configuration management tools locally
 from the same prompt.
-
