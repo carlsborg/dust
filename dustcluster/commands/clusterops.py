@@ -81,6 +81,32 @@ def create_cluster(args, cluster, logger):
         nodes = expand_clones(nodes)
         obj_yaml['nodes'] = nodes
 
+        # placement group
+        cluster_spec = obj_yaml.get('cluster')
+
+        print cluster_spec
+        if not cluster_spec:
+            raise Exception("No cluster section in template %s" % specfile)
+
+        cluster_name = cluster_spec.get('name')
+        if not cluster_name:
+            raise Exception("No cluster name in template %s" % specfile)
+
+        enable_placement = cluster_spec.get('use_placement_group')
+
+        placement_group = None
+        if enable_placement:
+            placement_group = ec2.PlacementGroup('DustPlacementGroup')
+            placement_group.Strategy='cluster'
+            cfn_template.add_resource(placement_group)
+
+            for node in nodes:
+                inst_type = node.get('instance_type')
+                if "large" not in inst_type:
+                    logger.error("Only large instance types can be launched into placement groups.")
+                    logger.error("http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/placement-groups.html")
+                    return
+
         # create a security group
         node_sec_group = ec2.SecurityGroup('DustNodeSG')
         node_sec_group.GroupDescription = "Allow cluster nodes to access each other"
@@ -102,6 +128,8 @@ def create_cluster(args, cluster, logger):
         ssh_sec_group.IpProtocol = 'tcp'
         cfn_template.add_resource(ssh_sec_group)
 
+        # create instances 
+
         for node in nodes:
             nodename = node.get('nodename')
             instance = ec2.Instance(nodename, 
@@ -116,20 +144,23 @@ def create_cluster(args, cluster, logger):
             instance.ImageId = node.get('image')
             instance.InstanceType = node.get('instance_type')
             instance.SecurityGroups = [ Ref(node_sec_group) ]
+
+            if placement_group:
+                instance.PlacementGroupName = Ref(placement_group)
+
             cfn_template.add_resource(instance)
 
         # save it to ./dustcluster/clusters/name_region.cfn
         cfn_json = cfn_template.to_json()
 
-        cluster_spec = obj_yaml.get('cluster')
-        if not cluster_spec:
-            raise Exception("No cluster section in template %s" % specfile)
-
-        cluster_name = cluster_spec.get('name')
-        if not cluster_name:
-            raise Exception("No cluster name in template %s" % specfile)
-
         logger.info(cfn_json)
+
+
+        writecfnto = "%s.cfn" % cluster_name
+        with open(writecfnto, "w") as fh:
+            fh.write(cfn_json)
+
+        logger.info("Wrote CloudFormation template to %s" % writecfnto)
 
         ret = raw_input("Create stack[y]:") or "y"
 
@@ -273,8 +304,12 @@ def cluster_status(args, cluster, logger):
         # get stack events
         events = conn.describe_stack_events(cluster_name)
 
+        startColorCyan  = "\033[0;36;40m"
+        endColor       = "\033[0m"
+
         for event in reversed(events):
-            print event
+            print event.timestamp, event.resource_type, event.logical_resource_id,\
+                event.resource_status, startColorCyan, event.resource_status_reason or "", endColor
 
     except Exception, e:
         logger.exception('Error: %s' % e)

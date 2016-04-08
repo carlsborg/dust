@@ -3,7 +3,7 @@
 
 Optionally there is support to sync a very minimal cluster spec to the cloud. 
 
-The $load command uses troposphere to convert a cluster config of the form below to an AWS cloudformation template, 
+The $cluster create command uses troposphere to convert a cluster config of the form below to an AWS cloudformation template, 
 and then uses the cloudformation apis to start the cluster.
 
 Firewall/ec2 security groups are configured to:
@@ -95,7 +95,32 @@ You can list all clusters, and delete a cluster with:
 > dust$ cluster list # show clusters by region
 
 
-**Note on authentication**:
+Notes:
+
+**Authentication**:
 
 Only key based authentication is supported. You can specify the key or keyfile in the cluster config under each node.
+
+
+**Placement groups**:
+
+You can create a placement group and launch this cluter in it, with the flag *use_placement_group*
+
+```
+cloud:
+  provider: ec2
+  region: us-east-1
+
+cluster:
+  name: sample1
+  use_placement_group: yes
+```
+
+Notes: 
+Only certain instances (xx.large) are allowed in placement groups.
+
+
+
+
+
 
