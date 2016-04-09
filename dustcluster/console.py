@@ -20,6 +20,7 @@ import os
 import readline
 import logging
 import ConfigParser
+import stat
 
 from collections import defaultdict
 from cmd import Cmd
@@ -127,6 +128,9 @@ class Console(Cmd):
         parser = ConfigParser.ConfigParser(config_data)
 
         logger.info("Writing credentials to [%s] with user read/write permissions (0600)" % config_file)
+
+        if not os.path.exists(self.dust_dir):
+            os.makedirs(self.dust_dir)
 
         with open(config_file, 'wb') as fh:
             parser.write(fh)

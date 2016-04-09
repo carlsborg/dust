@@ -1,14 +1,12 @@
 
 ### Creating a new cluster
 
-Optionally there is support to sync a very minimal cluster spec to the cloud. 
-
-The $cluster create command uses troposphere to convert a cluster config of the form below to an AWS cloudformation template, 
+The "cluster create" command uses troposphere to convert a cluster config of the form below to an AWS cloudformation template, 
 and then uses the cloudformation apis to start the cluster.
 
 Firewall/ec2 security groups are configured to:
 - allow incoming tcp connections on all ports between nodes
-- allow incoming ssh connections on port 22 from the outside
+- allow incoming ssh connections on port 22 and all ICMP from the outside
 - allow all outgoing connections
 
 sample1.yaml
