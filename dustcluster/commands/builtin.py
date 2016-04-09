@@ -182,6 +182,7 @@ def get_target_nodes(logger, cluster, target_node_str=None):
 
     target_nodes = cluster.resolve_target_nodes(op='show', target_node_name=target_node_str)
 
+    #target_nodes = [node for node in target_nodes if node.get('state') != 'terminated']
     target_nodes = [node for node in target_nodes]
     return target_nodes
 

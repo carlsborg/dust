@@ -18,6 +18,7 @@ required_packages = [
     'pyyaml',
     'boto>=2.39.0',
     'troposphere>=1.5.0',
+	'colorama>=0.2.5,<=0.3.3'
     ]
 
 setup(

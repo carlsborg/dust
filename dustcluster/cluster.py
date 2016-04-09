@@ -19,6 +19,7 @@ import re
 import fnmatch
 import os
 import yaml
+import colorama
 
 from copy import deepcopy
 
@@ -344,18 +345,12 @@ class Cluster(object):
 
         logger.info("Nodes in region: %s" % self.cloud.region)
 
-        # render node data
-        startColorGreen = "\033[0;32;40m"
-        startColorBlue  = "\033[0;34;40m"
-        startColorCyan  = "\033[0;36;40m"
-        endColor        = "\033[0m"
-
         try:
             header_data, header_fmt = nodes[0].disp_headers()
 
-            print startColorGreen
+            print colorama.Fore.GREEN
             print "   ", " ".join(header_fmt) % tuple(header_data)
-            print endColor
+            print colorama.Style.RESET_ALL
 
             prev_cluster_name = "_"
             for node in nodes:
@@ -366,20 +361,19 @@ class Cluster(object):
                         cluster_props = cluster_config.get('cluster')
                         name = cluster_props.get('name')
                         cluster_filter = cluster_props.get('filter')
-                        print endColor
+                        print colorama.Style.RESET_ALL
                         if extended:
                             print( "Cluster [%s] (%s)" % (name, cluster_filter))
                         else:
                             print( "%s" % (name))
                         prev_cluster_name = name or cluster_filter
                     else:
-                        print endColor
+                        print colorama.Style.RESET_ALL
                         print( "Unassigned:" )
                         name = "Unassigned"
                         prev_cluster_name = None
 
-                print startColorCyan,
-                print "    ", " ".join(header_fmt) % tuple(node.disp_data())
+                print colorama.Fore.CYAN, "    ", " ".join(header_fmt) % tuple(node.disp_data())
                 ext_data = []
                 if extended == 1:
                     ext_data = node.extended_data().items()
@@ -388,11 +382,11 @@ class Cluster(object):
 
                 if ext_data:
                     for k,v in ext_data:
-                        print startColorBlue, header_fmt[0] % "", k, ":", v
-                    print endColor
+                        print colorama.Style.DIM, colorama.Fore.WHITE, colorama.Style.DIM, header_fmt[0] % "", k, ":", v
+                    print colorama.Style.RESET_ALL
 
         finally:
-            print endColor
+            print colorama.Style.RESET_ALL
 
 
     def _filter_tags(self, tags, fkey, fval):
@@ -499,16 +493,15 @@ class Cluster(object):
             returns { clustername : (nodes, absentnodes) }
         '''
 
-        startColorGreen = "\033[0;32;40m"
-        endColor        = "\033[0m"
-
-        nodecache_nodes = self.nodecache.get(self.cloud.region)    
+        nodecache_nodes = self.nodecache.get(self.cloud.region)
         if nodecache_nodes:
-            logger.info("Retrieved [%d] nodes %sfrom cache%s" % (len(nodecache_nodes), startColorGreen, endColor))
+            logger.info("Retrieved [%d] nodes %sfrom cache%s" % (len(nodecache_nodes),
+                                                                    colorama.Fore.GREEN, colorama.Style.RESET_ALL))
             nodes = nodecache_nodes
         else:
             nodes = self.cloud.refresh()
-            logger.info("Retrieved [%d] nodes %sfrom cloud provider%s" % (len(nodes), startColorGreen, endColor))
+            logger.info("Retrieved [%d] nodes %sfrom cloud provider%s" % (len(nodes), 
+                                                                    colorama.Fore.GREEN, colorama.Style.RESET_ALL))
             self.nodecache[self.cloud.region] = nodes
 
         clusters = []
@@ -617,6 +610,9 @@ class Cluster(object):
             raise Exception('Internal error: No cloud provider loaded.')
 
         cluster_nodes = self.get_current_nodes()
+
+        if not cluster_nodes:
+            return []
 
         # filter by target string 
         # target string can be a name wildcard or filter expression with wildcards

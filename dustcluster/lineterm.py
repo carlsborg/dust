@@ -18,6 +18,7 @@ import select
 import socket
 import sys
 import os, struct, fcntl
+import colorama
 
 from paramiko.py3compat import u
 import paramiko
@@ -119,7 +120,8 @@ class ReceiveDemux(object):
 
                 if sshterm.recvbuf.strip():
                     sys.stdout.write('\n')
-                    prefix = "\n\033[1m[%s]\033[21m " % sshterm.node.name
+                    prefix = "%s%s[%s]%s" % (colorama.Style.BRIGHT, colorama.Fore.WHITE, sshterm.node.name, 
+                                                colorama.Style.RESET_ALL)
                     sys.stdout.write(prefix)
                     sys.stdout.write(sshterm.recvbuf.replace('\n', prefix))
                     sys.stdout.flush()

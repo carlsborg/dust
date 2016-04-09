@@ -15,6 +15,7 @@ import logging
 import os, sys
 from copy import deepcopy, copy
 import boto, boto.ec2
+import colorama
 
 from dustcluster.util import setup_logger
 logger = setup_logger( __name__ )
@@ -329,7 +330,9 @@ class EC2Node(object):
             val = self.get(field)
 
             if field == 'tags':
-                val =  ",".join( '%s=%s' % (k,v) for k,v in self._vm.tags.items())
+                sep = " , "
+                val = sep.join( '%s%s%s=%s' % (colorama.Style.RESET_ALL, k, colorama.Style.DIM, v) \
+                                    for k,v in self._vm.tags.items())
 
             if val:
                 ret[field] = val
@@ -345,8 +348,9 @@ class EC2Node(object):
             val = self.get(field)
 
             if field == 'tags':
-                val =  ",".join( '%s=%s' % (k,v) for k,v in self._vm.tags.items())
-
+                sep = " , "
+                val = sep.join( '%s%s%s=%s' % (colorama.Style.RESET_ALL, k, colorama.Style.DIM, v) \
+                                    for k,v in self._vm.tags.items())
             if val:
                 ret[field] = val
 

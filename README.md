@@ -46,10 +46,11 @@ dust$ @worker* cd /opt/data    # issue stateful shell commands to nodes named wo
 dust$ put data.dat worker* /opt/data
 dust$ @w* ls
 
-dust$ @state=running cd /etc    # select nodes by property for ssh
-dust$ show -v key=MyKey          # select nodes by property for show details
+dust$ @state=running cd /etc        # select nodes by property for ssh commands
+dust$ show -v key=MyKey             # select nodes by property for show details
+dust$ show launch_time=2016-04-08*  # select nodes by property + wildcards for show 
 
-dust$ stop worker*         # stop all nodes with a local name worker*
+dust$ stop worker*          # stop all nodes with a local name worker*
 dust$ terminate worker[4-5] # terminate nodes named worker4, worker5
 ```
 

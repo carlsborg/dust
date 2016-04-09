@@ -4,6 +4,7 @@ from troposphere import ec2, Ref, Template
 import yaml
 import boto
 import copy
+import os
 
 commands = ['cluster']
 
@@ -109,7 +110,22 @@ def create_cluster(args, cluster, logger):
 
         # create a security group
         node_sec_group = ec2.SecurityGroup('DustNodeSG')
-        node_sec_group.GroupDescription = "Allow cluster nodes to access each other"
+        node_sec_group.GroupDescription = "Allow incoming ssh and icmp and all intracluster tcp"
+
+        ssh_in_rule = ec2.SecurityGroupRule()
+        ssh_in_rule.FromPort = 22
+        ssh_in_rule.ToPort = 22
+        ssh_in_rule.CidrIp = "0.0.0.0/0"
+        ssh_in_rule.IpProtocol = 'tcp'
+
+        icmp_in_rule = ec2.SecurityGroupRule()
+        icmp_in_rule.FromPort = -1
+        icmp_in_rule.ToPort = -1
+        icmp_in_rule.CidrIp = "0.0.0.0/0"
+        icmp_in_rule.IpProtocol = 'icmp'
+
+        node_sec_group.SecurityGroupIngress = [ssh_in_rule, icmp_in_rule]
+
         cfn_template.add_resource(node_sec_group)
 
         intracluster_sec_group = ec2.SecurityGroupIngress('DustIntraClusterSG')
@@ -117,16 +133,8 @@ def create_cluster(args, cluster, logger):
         intracluster_sec_group.FromPort = 0 
         intracluster_sec_group.ToPort = 65535
         intracluster_sec_group.SourceSecurityGroupName = Ref(node_sec_group)
-        intracluster_sec_group.IpProtocol = 'tcp'
+        intracluster_sec_group.IpProtocol = "-1"
         cfn_template.add_resource(intracluster_sec_group)
-
-        ssh_sec_group = ec2.SecurityGroupIngress('DustSshSG')
-        ssh_sec_group.GroupName = Ref(node_sec_group)
-        ssh_sec_group.FromPort = 22
-        ssh_sec_group.ToPort = 22
-        ssh_sec_group.CidrIp = "0.0.0.0/0"
-        ssh_sec_group.IpProtocol = 'tcp'
-        cfn_template.add_resource(ssh_sec_group)
 
         # create instances 
 
@@ -155,22 +163,33 @@ def create_cluster(args, cluster, logger):
 
         logger.info(cfn_json)
 
-
-        writecfnto = "%s.cfn" % cluster_name
+        writecfnto = os.path.join(cluster.clusters_dir, "%s.cfn" % cluster_name)
         with open(writecfnto, "w") as fh:
             fh.write(cfn_json)
 
         logger.info("Wrote CloudFormation template to %s" % writecfnto)
 
-        ret = raw_input("Create stack[y]:") or "y"
+
+        logger.info("Validating template ...")
+        conn = get_cfn_connection(logger, cluster)
+
+        valid = conn.validate_template(cfn_json)
+        print valid.ValidateTemplateResult
+        if valid.capabilities:
+            print valid.capabilities, valid.capabilities_reason, valid.description
+
+        try:
+            cost_url = conn.estimate_template_cost(cfn_json)
+            logger.info("Estimated running cost of this cluster at:  %s" % cost_url)
+        except Exception, ex:
+            logger.info("Error calling estimate template costs.")
+
+        ret = raw_input("Create stack [y]:") or "y"
 
         if ret.lower()[0] != "y":
             return
 
-        conn = get_cfn_connection(logger, cluster)
-
         # create the stack
-        conn.validate_template(cfn_json)
 
         conn.create_stack(stack_name=cluster_name,  template_body=cfn_json)
 
