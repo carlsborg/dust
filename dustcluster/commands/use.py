@@ -156,9 +156,17 @@ def use_cluster(args, cluster, logger):
 def use_region(args, cluster, logger):
 
     new_region = args[0]
+
+    if new_region == '*':
+        new_region = cluster.cloud.region
+
     cloud_data = { 'provider': 'ec2', 'region' : new_region }
 
     cluster.unload_cur_cluster()
+
+    if new_region != cluster.cloud.region:
+        cluster.invalidate_cache()
+
     cluster.init_cloud_provider(cloud_data)
 
     logger.info("Connected to %s " % cluster.region)

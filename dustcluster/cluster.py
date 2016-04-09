@@ -277,7 +277,6 @@ class Cluster(object):
     def unload_cur_cluster(self):
         ''' unload a cluster template ''' 
         self.cur_cluster = ""
-        self.invalidate_cache()
 
 
     def get_default_key(self):
@@ -353,7 +352,14 @@ class Cluster(object):
             print colorama.Style.RESET_ALL
 
             prev_cluster_name = "_"
+            prev_vpc = "_"
             for node in nodes:
+
+                node_vpc = node.get('vpc')
+                if node_vpc and node_vpc != prev_vpc:
+                    print ""
+                    print "%s--%s:%s" % (colorama.Fore.GREEN, node_vpc, colorama.Style.RESET_ALL)
+                    prev_vpc = node_vpc
 
                 if node.cluster != prev_cluster_name:
                     if node.cluster:
@@ -361,11 +367,10 @@ class Cluster(object):
                         cluster_props = cluster_config.get('cluster')
                         name = cluster_props.get('name')
                         cluster_filter = cluster_props.get('filter')
-                        print colorama.Style.RESET_ALL
                         if extended:
-                            print( "Cluster [%s] (%s)" % (name, cluster_filter))
+                            print( "%sCluster [%s] (%s)" % (colorama.Style.RESET_ALL, name, cluster_filter))
                         else:
-                            print( "%s" % (name))
+                            print( "%s%s" % (colorama.Style.RESET_ALL, name))
                         prev_cluster_name = name or cluster_filter
                     else:
                         print colorama.Style.RESET_ALL
@@ -481,7 +486,7 @@ class Cluster(object):
         for cluster_name, nodelist in cur_nodes.iteritems():
             ret_nodes.extend(nodelist)
 
-        ret_nodes = sorted(ret_nodes, key =lambda x: x.cluster)
+        ret_nodes = sorted(ret_nodes, key =lambda x: (x.get('vpc'), x.cluster))
 
         return ret_nodes
 

@@ -120,7 +120,7 @@ class ReceiveDemux(object):
 
                 if sshterm.recvbuf.strip():
                     sys.stdout.write('\n')
-                    prefix = "%s%s[%s]%s" % (colorama.Style.BRIGHT, colorama.Fore.WHITE, sshterm.node.name, 
+                    prefix = "\n%s%s[%s]%s " % (colorama.Style.BRIGHT, colorama.Fore.WHITE, sshterm.node.name, 
                                                 colorama.Style.RESET_ALL)
                     sys.stdout.write(prefix)
                     sys.stdout.write(sshterm.recvbuf.replace('\n', prefix))

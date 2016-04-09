@@ -104,7 +104,7 @@ Only key based authentication is supported. You can specify the key or keyfile i
 
 **Placement groups**:
 
-You can create a placement group and launch this cluter in it, with the flag *use_placement_group*
+You can create a placement group and launch this cluster in it, with the flag *use_placement_group*
 
 ```
 cloud:
@@ -116,11 +116,46 @@ cluster:
   use_placement_group: yes
 ```
 
+This puts the nodes in a 10GBps network and closeby to each other for lower inter-node latency.
+
 Notes: 
 Only certain instances (xx.large) are allowed in placement groups.
 
 
+**Launch in a VPC**:
+
+You can launch the cluster in an existing VPC by providing the vpc id and subnet id in the cluster section:
+
+```
+cloud:
+  provider: ec2
+  region: us-east-1
+
+cluster:
+  name: VPCcluster
+  subnet_id: subnet-33c11119
+  vpc_id: vpc-29d8864d
+```
+
+When used with the placement groups and the latest Amazon AMIs, this enables Enhanced Networking (using single root 
+I/O virtualization). 
+
+You can check if enhanced networking is enabled with:
+
+> dust$ @ ethtool -i eth0 | grep driver     # "at all nodes" 
+
+If Enhanced Networking is enabled the driver is ixgbevf instead of vif
+
+```
+[master] driver: ixgbevf
+[master] 
 
 
+[worker1] driver: ixgbevf
+[worker1] 
 
+
+[worker0] driver: ixgbevf
+[worker0] 
+```
 

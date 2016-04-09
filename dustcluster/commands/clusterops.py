@@ -1,6 +1,6 @@
 import pprint
 from boto import cloudformation
-from troposphere import ec2, Ref, Template
+from troposphere import ec2, Ref, Template, GetAtt
 import yaml
 import boto
 import copy
@@ -93,6 +93,8 @@ def create_cluster(args, cluster, logger):
         if not cluster_name:
             raise Exception("No cluster name in template %s" % specfile)
 
+
+        # placement group
         enable_placement = cluster_spec.get('use_placement_group')
 
         placement_group = None
@@ -108,9 +110,19 @@ def create_cluster(args, cluster, logger):
                     logger.error("http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/placement-groups.html")
                     return
 
+        # subnet for VPC
+        vpc_id     = cluster_spec.get('vpc_id')
+        vpc_subnet = cluster_spec.get('subnet_id')
+
+        if vpc_id and not vpc_subnet:
+            logger.error("Need to specify subnet_id and vpc_id if you want to launch nodes into a vpc")
+            return
+
         # create a security group
         node_sec_group = ec2.SecurityGroup('DustNodeSG')
         node_sec_group.GroupDescription = "Allow incoming ssh and icmp and all intracluster tcp"
+        if vpc_subnet:
+            node_sec_group.VpcId = vpc_id
 
         ssh_in_rule = ec2.SecurityGroupRule()
         ssh_in_rule.FromPort = 22
@@ -126,13 +138,20 @@ def create_cluster(args, cluster, logger):
 
         node_sec_group.SecurityGroupIngress = [ssh_in_rule, icmp_in_rule]
 
+
         cfn_template.add_resource(node_sec_group)
 
         intracluster_sec_group = ec2.SecurityGroupIngress('DustIntraClusterSG')
-        intracluster_sec_group.GroupName = Ref(node_sec_group)
+        if vpc_subnet:
+            intracluster_sec_group.GroupId = Ref(node_sec_group)
+        else:
+            intracluster_sec_group.GroupName = Ref(node_sec_group)
         intracluster_sec_group.FromPort = 0 
         intracluster_sec_group.ToPort = 65535
-        intracluster_sec_group.SourceSecurityGroupName = Ref(node_sec_group)
+        if vpc_subnet:
+            intracluster_sec_group.SourceSecurityGroupId = Ref(node_sec_group)
+        else:
+            intracluster_sec_group.SourceSecurityGroupName = Ref(node_sec_group)
         intracluster_sec_group.IpProtocol = "-1"
         cfn_template.add_resource(intracluster_sec_group)
 
@@ -141,7 +160,7 @@ def create_cluster(args, cluster, logger):
         for node in nodes:
             nodename = node.get('nodename')
             instance = ec2.Instance(nodename, 
-                                    Tags = [ec2.Tag("name", nodename)])
+                                    Tags = [ec2.Tag("Name", nodename)])
 
             keyname = node.get('key')
             if keyname:
@@ -151,7 +170,19 @@ def create_cluster(args, cluster, logger):
                 return
             instance.ImageId = node.get('image')
             instance.InstanceType = node.get('instance_type')
-            instance.SecurityGroups = [ Ref(node_sec_group) ]
+
+            # vpc public ip
+            if vpc_subnet:
+                network_interface = ec2.NetworkInterfaceProperty("DustNIC" + nodename)
+                network_interface.AssociatePublicIpAddress = True
+                network_interface.DeleteOnTermination = True
+                network_interface.DeviceIndex = 0 
+                network_interface.SubnetId = vpc_subnet
+                network_interface.GroupSet =  [Ref(node_sec_group)]
+                instance.NetworkInterfaces = [network_interface]
+
+            if not vpc_subnet:
+                instance.SecurityGroups = [ Ref(node_sec_group) ]
 
             if placement_group:
                 instance.PlacementGroupName = Ref(placement_group)

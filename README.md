@@ -9,7 +9,8 @@ Status:
 * Developed/tested with Python 2.7
 * Currently, this is alpha/work in progress
 
-[Installation and quick start](INSTALL.md)
+See setup.py for dependencies.
+
 
 Table of Contents
 =================
@@ -175,9 +176,14 @@ will apply to only these nodes:
 > dust$ @ sudo tail /var/log/audit  # invoke sudo tail on all nodes
 
 
-**Revert to everything in region us-east-1**
+**Revert to everything in the current region**
 
-> dust$ use us-east-1
+> dust$ use *
+
+**Switch to everything in a new region**
+
+> dust$ use us-west-1
+
 
 
 ### Cluster ssh to a set of nodes
