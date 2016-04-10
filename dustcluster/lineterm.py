@@ -242,7 +242,12 @@ class SSHTerm(object):
 
     def login(self, cookie=False):
         hostname = self.node.get('public_dns_name')
+        if not hostname:
+            hostname = self.node.get('ip')
         username = self.node.username
+
+        if not hostname or not username:
+            raise Exception("No hostname or username available for node %s" % node.nodename)
 
         logger.debug('hostname=[%s], username=[%s], key=[%s]' % (hostname, username, self.keyfile))
         if not self.is_connected():
@@ -500,4 +505,5 @@ class LineTerm(object):
 
     def shutdown(self):
         self.session_manager.shutdown()
+
 

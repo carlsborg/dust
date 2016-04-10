@@ -63,6 +63,10 @@ def list_clusters(args, cluster, logger):
             print " ", obj_yaml.get('cluster').get('name')
 
 def create_cluster(args, cluster, logger):
+    '''
+        parse a yaml spec for a cluster and create a cloud formation 
+        template using troposphere. create this cluster as a cfn stack.
+    '''
 
     try:
 
@@ -111,8 +115,50 @@ def create_cluster(args, cluster, logger):
                     return
 
         # subnet for VPC
-        vpc_id     = cluster_spec.get('vpc_id')
-        vpc_subnet = cluster_spec.get('subnet_id')
+        create_vpc = None
+        vpc_id     = None
+        vpc_subnet = None
+
+        if str(cluster_spec.get('create_vpc')).lower() == 'yes':
+            vpc = ec2.VPC("DustVPC")
+            vpc.CidrBlock = "10.0.0.0/16"
+            vpc.Tags = [ec2.Tag("Name:", cluster_name)]
+            cfn_template.add_resource(vpc)
+            vpc_id = Ref(vpc)
+
+            subnet = ec2.Subnet('dustSubnet')
+            subnet.VpcId = vpc_id
+            subnet.CidrBlock = "10.0.0.0/24"
+            cfn_template.add_resource(subnet)
+            vpc_subnet = Ref(subnet)
+
+            net_gateway = ec2.InternetGateway('dustGateway')
+            cfn_template.add_resource(net_gateway)
+
+            attach_net_gateway = ec2.VPCGatewayAttachment('dustAttachGateway')
+            attach_net_gateway.VpcId = vpc_id
+            attach_net_gateway.InternetGatewayId = Ref(net_gateway)
+            cfn_template.add_resource(attach_net_gateway)
+
+            route_table = ec2.RouteTable('dustRoutetable')
+            route_table.VpcId = vpc_id
+            cfn_template.add_resource(route_table)
+
+            route = ec2.Route('dustRoute')
+            route.RouteTableId = Ref(route_table)
+            route.DestinationCidrBlock = "0.0.0.0/0"
+            route.GatewayId = Ref(net_gateway)
+            route.DependsOn = "dustAttachGateway"
+            cfn_template.add_resource(route)
+
+            attach_route = ec2.SubnetRouteTableAssociation('dustAttachRouteTable')
+            attach_route.SubnetId = vpc_subnet
+            attach_route.RouteTableId = Ref(route_table)
+            cfn_template.add_resource(attach_route)
+
+        elif cluster_spec.get('vpc_id'):
+            vpc_id     = cluster_spec.get('vpc_id')
+            vpc_subnet = cluster_spec.get('subnet_id')
 
         if vpc_id and not vpc_subnet:
             logger.error("Need to specify subnet_id and vpc_id if you want to launch nodes into a vpc")
@@ -170,6 +216,9 @@ def create_cluster(args, cluster, logger):
                 return
             instance.ImageId = node.get('image')
             instance.InstanceType = node.get('instance_type')
+
+            if create_vpc:
+                instance.DependsOn = "dustAttachGateway"
 
             # vpc public ip
             if vpc_subnet:
@@ -299,7 +348,7 @@ def save_cluster(cluster, obj_yaml, logger):
 
     nodes_props = obj_yaml.get('nodes')
     for node in nodes_props:
-        node['selector'] = 'tags=name:%s'  % node.get('nodename')
+        node['selector'] = 'tags=Name:%s'  % node.get('nodename')
 
     str_yaml = yaml.dump(obj_yaml, default_flow_style=False)
     ret = cluster.save_cluster_config(name, str_yaml)

@@ -5,7 +5,7 @@ dust
 DustCluster is an ssh cluster shell for EC2
 
 Status:
-* Tested/known to work on Linux only (Debian, Ubuntu, CentOS)
+* Tested/known to work on Linux and OSX only (Debian, Ubuntu, CentOS, OSX Yosemite)
 * Developed/tested with Python 2.7
 * Currently, this is alpha/work in progress
 

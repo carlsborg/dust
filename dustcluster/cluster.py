@@ -387,7 +387,7 @@ class Cluster(object):
 
                 if ext_data:
                     for k,v in ext_data:
-                        print colorama.Style.DIM, colorama.Fore.WHITE, colorama.Style.DIM, header_fmt[0] % "", k, ":", v
+                        print colorama.Style.RESET_ALL, colorama.Style.DIM, header_fmt[0] % "", k, ":", v
                     print colorama.Style.RESET_ALL
 
         finally:
@@ -500,13 +500,13 @@ class Cluster(object):
 
         nodecache_nodes = self.nodecache.get(self.cloud.region)
         if nodecache_nodes:
-            logger.info("Retrieved [%d] nodes %sfrom cache%s" % (len(nodecache_nodes),
-                                                                    colorama.Fore.GREEN, colorama.Style.RESET_ALL))
+            logger.info("Retrieved [%d] nodes %s%sfrom cache%s" % (len(nodecache_nodes),
+                                                                    colorama.Fore.GREEN, colorama.Style.BRIGHT, colorama.Style.RESET_ALL))
             nodes = nodecache_nodes
         else:
             nodes = self.cloud.refresh()
-            logger.info("Retrieved [%d] nodes %sfrom cloud provider%s" % (len(nodes), 
-                                                                    colorama.Fore.GREEN, colorama.Style.RESET_ALL))
+            logger.info("Retrieved [%d] nodes %s%sfrom cloud provider%s" % (len(nodes), 
+                                                                    colorama.Fore.GREEN, colorama.Style.BRIGHT, colorama.Style.RESET_ALL))
             self.nodecache[self.cloud.region] = nodes
 
         clusters = []

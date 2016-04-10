@@ -120,7 +120,7 @@ Notes:
 Only certain instances (xx.large) are allowed in placement groups.
 
 
-**Launch in a VPC**:
+**Launch in an existing VPC**:
 
 You can launch the cluster in an existing VPC by providing the vpc id and subnet id in the cluster section:
 
@@ -134,6 +134,25 @@ cluster:
   subnet_id: subnet-33c11119
   vpc_id: vpc-29d8864d
 ```
+
+
+**Launch in a new VPC**:
+
+You can launch the cluster in a new VPC by providing the create_vpc flag:
+
+```
+cloud:
+  provider: ec2
+  region: us-east-1
+
+cluster:
+  name: VPCcluster
+  create_vpc: yes
+```
+
+This creates an VPC, internet gateway, and public subnet and configures the routing tables.
+
+** Why launch in a VPC? **
 
 When used with the placement groups and the latest Amazon AMIs, this enables Enhanced Networking (using single root 
 I/O virtualization). 
