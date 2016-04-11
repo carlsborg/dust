@@ -181,10 +181,16 @@ class Cluster(object):
 
         return template_file
 
-    def delete_cluster_config(self, name):
+    def delete_cluster_config(self, name, region):
         template_file = "%s.yaml" % name
         template_file = os.path.join(self.clusters_dir, template_file)
         os.remove(template_file)
+
+        template_file = "%s.%s.cfn" % (region,name)
+        template_file = os.path.join(self.clusters_dir, template_file)
+        if os.path.exists(template_file):
+            os.remove(template_file)
+
         logger.info("Deleted cluster config: %s" % template_file)
 
 
@@ -197,6 +203,19 @@ class Cluster(object):
         cloud_data = { 'provider': 'ec2', 'region' :  default_region}
 
         self.init_cloud_provider(cloud_data)
+
+    def switch_to_region(self, new_region):
+
+        cloud_data = { 'provider': 'ec2', 'region' : new_region }
+
+        self.unload_cur_cluster()
+
+        if new_region != self.cloud.region:
+            self.invalidate_cache()
+
+        self.init_cloud_provider(cloud_data)
+
+        logger.info("Connected to %s " % self.region)
 
 
     def switch_to_cluster(self, cluster_name):
@@ -253,25 +272,44 @@ class Cluster(object):
         cloud_provider = None
         cloudregion = cloud_data.get('region')
         if provider.lower() == 'ec2':
-            key = ('ec2',cloudregion)
-            cloud_provider = self.provider_cache.get(key) 
-
-            if not cloud_provider:
-                cloud_provider = EC2Cloud(creds_map=self.dust_config_data, region=cloudregion)
-                cloud_provider.connect()
-                self.provider_cache[key] = cloud_provider
+            cloud_provider = self.get_cloud_provider_by_region(provider, cloudregion)
         else:
             raise Exception("Unknown cloud provider [%s]." % provider)
 
         return cloud_provider, cloudregion
 
 
+    def get_cloud_provider_by_region(self, provider, cloudregion):
+
+        key = (provider,cloudregion)
+        cloud_provider = self.provider_cache.get(key) 
+
+        if not cloud_provider:
+            cloud_provider = EC2Cloud(creds_map=self.dust_config_data, region=cloudregion)
+            cloud_provider.connect()
+            self.provider_cache[key] = cloud_provider
+
+        return cloud_provider
+
+
     def show_clusters(self):
 
-        for cluster_name in self.clusters:
-            print cluster_name
+        clusters = {}
 
-        return
+        for cluster_name, obj_yaml in self.clusters.iteritems():
+
+            region = obj_yaml.get('cloud').get('region')
+
+            if region not in clusters:
+                clusters[region] = []
+
+            clusters[region].append(obj_yaml)
+
+        for region in clusters:
+            print "Region: %s" % region
+
+            for obj_yaml in clusters[region]:
+                print " ", obj_yaml.get('cluster').get('name')
 
 
     def unload_cur_cluster(self):
@@ -279,17 +317,20 @@ class Cluster(object):
         self.cur_cluster = ""
 
 
-    def get_default_key(self):
-        ''' get the default key for this region and provider '''
+    def get_default_key(self, region=""):
+        ''' get the default key for current or specified region '''
 
         try:
 
+            if not region:
+                region = self.cloud.region
+
             keymap = self.get_user_data('ec2-key-mapping') or {}
 
-            keyname = "%s_dustcluster" % (self.cloud.region)
+            keyname = "%s_dustcluster" % (region)
             keyname = keyname.translate(None, "-")
 
-            region_key = "%s#%s" % (self.cloud.region, keyname)
+            region_key = "%s#%s" % (region, keyname)
             keyfile = keymap.get(region_key)
             if keyfile:
                 return keyname, keyfile
@@ -302,8 +343,8 @@ class Cluster(object):
             return keyname, keypath
 
         except Exception, ex:
+            logger.exception(ex)
             logger.error('Error getting default keys: %s' % ex)
-
 
     def get_user_data(self, section):
 
@@ -404,7 +445,7 @@ class Cluster(object):
 
         # match tag keys, then vals
         for tagkey, tagval in tags.items():
-            if keymatch.match(tagkey) and valmatch.match(tagval):
+            if keymatch.match(tagkey.lower()) and valmatch.match(tagval.lower()):
                 return True
 
         return False
@@ -420,6 +461,9 @@ class Cluster(object):
 
         if not filterkey:
             return nodes
+
+        filterkey = filterkey.lower()
+        filterval = filterval.lower()
 
         if filterkey == "tags":
 

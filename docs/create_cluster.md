@@ -25,20 +25,16 @@ nodes:
   instance_type: t2.nano
   nodename: master
   username: ec2-user
-  key: YourKeyName
 
 - image: ami-8fcee4e5
   instance_type: t2.nano
   nodename: worker
   username: ec2-user
-  key: YourKeyName
   count: 2
 ```
 
 Note: the second node has count = 2, so nodes will be called
 worker1, worker2
-
-Note: replace YourKeyName with an existing key name
 
 > dust$ cluster create sample1.yaml
 
@@ -97,7 +93,21 @@ Notes:
 
 **Authentication**:
 
-Only key based authentication is supported. You can specify the key or keyfile in the cluster config under each node.
+Only key based authentication is supported. DustCluster creates and uses a default key for all clusters you create.
+Optionally, you can specify an existing key under each node.
+
+Like so:
+
+```
+nodes:
+
+- image: ami-8fcee4e5
+  instance_type: t2.nano
+  nodename: master
+  username: ec2-user
+  key: YourKeyName
+```
+
 
 
 **Placement groups**:
@@ -152,7 +162,7 @@ cluster:
 
 This creates an VPC, internet gateway, and public subnet and configures the routing tables.
 
-** Why launch in a VPC? **
+**Why launch in a VPC?**
 
 When used with the placement groups and the latest Amazon AMIs, this enables Enhanced Networking (using single root 
 I/O virtualization). 

@@ -95,7 +95,8 @@ class EC2Cloud(object):
     def create_keypair(self, keyname, keydir):
         '''  create a keypair and save it keydir/keyname.pem '''
 
-        os.makedirs(keydir)
+        if not os.path.exists(keydir):
+            os.makedirs(keydir)
 
         keypath = os.path.join(keydir, "%s.pem" % keyname)
         if os.path.exists(keypath):
@@ -106,7 +107,7 @@ class EC2Cloud(object):
         keypairs = self.conn().get_all_key_pairs()
         for keypair in keypairs:
             if keypair.name == keyname:
-                errstr = "They key %s has exists on this account already." % keyname
+                errstr = "They key %s exists on this account for this region already." % keyname
                 logger.info('Cloud keys : %s' % str(keypairs)) 
                 raise Exception(errstr)
 
@@ -325,11 +326,10 @@ class EC2Node(object):
         # updated here for showex command error
         ret = {}
 
-
         for field in self.extended_fields:
             val = self.get(field)
 
-            if field == 'tags':
+            if field == 'tags' and self._vm:
                 sep = " , "
                 val = sep.join( '%s%s%s=%s' % (colorama.Style.RESET_ALL, k, colorama.Style.DIM, v) \
                                     for k,v in self._vm.tags.items())

@@ -160,16 +160,7 @@ def use_region(args, cluster, logger):
     if new_region == '*':
         new_region = cluster.cloud.region
 
-    cloud_data = { 'provider': 'ec2', 'region' : new_region }
-
-    cluster.unload_cur_cluster()
-
-    if new_region != cluster.cloud.region:
-        cluster.invalidate_cache()
-
-    cluster.init_cloud_provider(cloud_data)
-
-    logger.info("Connected to %s " % cluster.region)
+    cluster.switch_to_region(new_region)
 
 def deduce_node_name(node, i):
 
@@ -183,7 +174,7 @@ def deduce_selector(node, i):
 
     for tag,val in node.get('tags').items():
         if tag.lower() == 'name' and val.strip():
-            return "tags=%s:%s" % ( "name", str(node.get('tags')[tag]) )
+            return "tags=%s:%s" % ( "Name", str(node.get('tags')[tag]) )
 
     return 'id=%s' % str(node.id)
 

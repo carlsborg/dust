@@ -97,10 +97,7 @@ class Console(Cmd):
         logger.info(self.dustintro)
         if self.cluster.clusters:
             print "\nAvailable clusters:"
-            for cluster_name in self.cluster.clusters:
-                print cluster_name
-
-            print
+            self.cluster.show_clusters()
 
     def read_config(self, config_file):
 

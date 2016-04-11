@@ -44,23 +44,7 @@ def cluster(cmdline, cluster, logger):
         return
 
 def list_clusters(args, cluster, logger):
-
-    clusters = {}
-
-    for cluster_name, obj_yaml in cluster.clusters.iteritems():
-
-        region = obj_yaml.get('cloud').get('region')
-
-        if region not in clusters:
-            clusters[region] = []
-
-        clusters[region].append(obj_yaml)
-
-    for region in clusters:
-        print "Region: %s" % region
-
-        for obj_yaml in clusters[region]:
-            print " ", obj_yaml.get('cluster').get('name')
+    cluster.show_clusters()
 
 def create_cluster(args, cluster, logger):
     '''
@@ -72,13 +56,18 @@ def create_cluster(args, cluster, logger):
 
         specfile = args[1]
 
-        cfn_id = 'cloudformation-connection-%s' % cluster.cloud.region
-
         str_yaml = ""
         with open(specfile, "r") as fh:
             str_yaml = fh.read()
 
         obj_yaml = yaml.load(str_yaml)
+
+        cloud_spec = obj_yaml.get('cloud')
+        target_region = cloud_spec.get('region')
+
+        # for default keys, etc
+        if cluster.region != target_region:
+            cluster.switch_to_region(target_region)
 
         # use troposphere to write out a cloud formation template
         cfn_template = Template()
@@ -86,17 +75,13 @@ def create_cluster(args, cluster, logger):
         nodes = expand_clones(nodes)
         obj_yaml['nodes'] = nodes
 
-        # placement group
         cluster_spec = obj_yaml.get('cluster')
-
-        print cluster_spec
         if not cluster_spec:
             raise Exception("No cluster section in template %s" % specfile)
 
         cluster_name = cluster_spec.get('name')
         if not cluster_name:
             raise Exception("No cluster name in template %s" % specfile)
-
 
         # placement group
         enable_placement = cluster_spec.get('use_placement_group')
@@ -212,8 +197,12 @@ def create_cluster(args, cluster, logger):
             if keyname:
                 instance.KeyName = keyname
             else:
-                logger.error("No keyname provided for node %s" % nodename)
-                return
+               # default keys
+                default_key = cluster_spec.get('key')
+                if not default_key:
+                    default_key, keypath = cluster.get_default_key(target_region)
+                instance.KeyName = default_key
+
             instance.ImageId = node.get('image')
             instance.InstanceType = node.get('instance_type')
 
@@ -243,7 +232,7 @@ def create_cluster(args, cluster, logger):
 
         logger.info(cfn_json)
 
-        writecfnto = os.path.join(cluster.clusters_dir, "%s.cfn" % cluster_name)
+        writecfnto = os.path.join(cluster.clusters_dir, "%s.%s.cfn" % (cluster_name, target_region))
         with open(writecfnto, "w") as fh:
             fh.write(cfn_json)
 
@@ -251,7 +240,7 @@ def create_cluster(args, cluster, logger):
 
 
         logger.info("Validating template ...")
-        conn = get_cfn_connection(logger, cluster)
+        conn = get_cfn_connection(logger, cluster, target_region)
 
         valid = conn.validate_template(cfn_json)
         print valid.ValidateTemplateResult
@@ -294,18 +283,20 @@ def delete_cluster(args, cluster, logger):
             logger.error("%s is not a cluster" % cluster_name)
             return
 
-        cfn_id = 'cloudformation-connection-%s' % cluster.cloud.region
+        obj_yaml = cluster.clusters[cluster_name]
+    
+        region = obj_yaml.get('cloud').get('region')
 
         ret = raw_input("Please confirm: Delete stack[n]? ") or "n"
 
         if ret.lower()[0] != "y":
             return
 
-        conn = get_cfn_connection(logger, cluster)
+        conn = get_cfn_connection(logger, cluster, region)
 
         # delete the stack
         conn.delete_stack(cluster_name)
-        cluster.delete_cluster_config(cluster_name)
+        cluster.delete_cluster_config(cluster_name, region)
         cluster.read_all_clusters()
 
         cluster.invalidate_cache()
@@ -357,15 +348,15 @@ def save_cluster(cluster, obj_yaml, logger):
         logger.info("Wrote cluster to %s" % ret)
 
 
-def get_cfn_connection(logger, cluster):
+def get_cfn_connection(logger, cluster, region):
 
-    cfn_id = 'cloudformation-connection-%s' % cluster.cloud.region
+    cfn_id = 'cloudformation-connection-%s' % region
 
     conn = cluster.command_state.get(cfn_id)
 
     if not conn:
-        logger.info("Connecting to cloud formation endpoint in %s" % cluster.cloud.region)
-        conn = boto.cloudformation.connect_to_region(cluster.cloud.region,
+        logger.info("Connecting to cloud formation endpoint in %s" % region)
+        conn = boto.cloudformation.connect_to_region(region,
                                         aws_access_key_id=cluster.cloud.creds_map['aws_access_key_id'], 
                                         aws_secret_access_key=cluster.cloud.creds_map['aws_secret_access_key'])
         cluster.command_state.put(cfn_id, conn)
@@ -382,16 +373,16 @@ def cluster_status(args, cluster, logger):
     cluster status mycluster
     
     Note:
-    With no args, describe all stacks
+    With no args, describe all stacks _in the current region_
     '''
 
     try:
 
-        conn = get_cfn_connection(logger, cluster)
-
         cluster_name = args[1]
 
         if not cluster_name:
+            conn = get_cfn_connection(logger, cluster, cluster.cloud.region)
+
             stacks = conn.describe_stacks()
             for stack in stacks:
                 print stack
@@ -399,6 +390,17 @@ def cluster_status(args, cluster, logger):
                 for event in reversed(events):
                     print event
             return
+
+        obj_yaml = cluster.clusters.get(cluster_name)
+        if not obj_yaml:
+            logger.error("No such cluster %s" % cluster_name)
+
+        if obj_yaml:
+            region = obj_yaml.get('cloud').get('region')
+        else:
+            region = cluster.cloud.region
+
+        conn = get_cfn_connection(logger, cluster, region)
 
         # get stack events
         events = conn.describe_stack_events(cluster_name)
