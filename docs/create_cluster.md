@@ -127,12 +127,14 @@ cluster:
 This puts the nodes in a 10GBps network and closeby to each other for lower inter-node latency.
 
 Notes: 
-Only certain instances (xx.large) are allowed in placement groups.
+1. Only certain instances (xx.large) are allowed in placement groups.
+2. This needs a vpc.
 
 
 **Launch in an existing VPC**:
 
-You can launch the cluster in an existing VPC by providing the vpc id and subnet id in the cluster section:
+One non EC2-classic accounts, your cluster will generally be launched into the default VPC.
+You can launch the cluster in a different existing VPC by providing the vpc id and subnet id in the cluster section:
 
 ```
 cloud:
@@ -162,14 +164,13 @@ cluster:
 
 This creates an VPC, internet gateway, and public subnet and configures the routing tables.
 
-**Why launch in a VPC?**
 
-When used with the placement groups and the latest Amazon AMIs, this enables Enhanced Networking (using single root 
-I/O virtualization). 
+**Check for Enhanced Networking**
+
 
 You can check if enhanced networking is enabled with:
 
-> dust$ @ ethtool -i eth0 | grep driver     # "at all nodes" 
+> dust$ @ ethtool -i eth0 | grep driver
 
 If Enhanced Networking is enabled the driver is ixgbevf instead of vif
 

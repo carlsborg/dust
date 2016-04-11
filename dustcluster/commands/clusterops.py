@@ -232,6 +232,9 @@ def create_cluster(args, cluster, logger):
 
         logger.info(cfn_json)
 
+        if not os.path.exists(cluster.clusters_dir):
+            os.makedirs(cluster.clusters_dir)
+
         writecfnto = os.path.join(cluster.clusters_dir, "%s.%s.cfn" % (cluster_name, target_region))
         with open(writecfnto, "w") as fh:
             fh.write(cfn_json)
