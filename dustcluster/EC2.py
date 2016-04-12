@@ -15,6 +15,8 @@ import logging
 import os, sys
 from copy import deepcopy, copy
 import boto, boto.ec2
+import socket
+import datetime
 import colorama
 
 from dustcluster.util import setup_logger
@@ -39,7 +41,6 @@ class EC2Cloud(object):
         self.username = username
         self.keyfile = keyfile
         self.creds_map = creds_map
-
 
     def connect(self):
 
@@ -101,15 +102,13 @@ class EC2Cloud(object):
         keypath = os.path.join(keydir, "%s.pem" % keyname)
         if os.path.exists(keypath):
             logger.info('Found key pair locally, not doing anything. key=[%s] keypath=[%s]' % (keyname, keypath))
-            return keyname, keypath 
+            return True, keyname, keypath 
 
         # check is the keys exists in the cloud
         keypairs = self.conn().get_all_key_pairs()
         for keypair in keypairs:
             if keypair.name == keyname:
-                errstr = "They key %s exists on this account for this region already." % keyname
-                logger.info('Cloud keys : %s' % str(keypairs)) 
-                raise Exception(errstr)
+                return True, keyname, ""
 
         # create it
         key = self.conn().create_key_pair(keyname)
@@ -118,7 +117,8 @@ class EC2Cloud(object):
         else:
             raise Exception('Error creating key')
 
-        return keyname, keypath
+        return False, keyname, keypath
+
 
 class EC2Node(object):
     '''
@@ -355,4 +355,111 @@ class EC2Node(object):
                 ret[field] = val
 
         return ret
+
+
+### helpers
+
+class EC2Config(object):
+
+    @staticmethod
+    def http_ping(endpoint):
+
+        req = '''GET / HTTP/1.1\nUser-Agent: DustCluster\nHost: %s\nAccept: */*\n\n'''
+
+        try:
+            t1 = datetime.datetime.now()
+            sendsock = socket.create_connection((endpoint, 80))
+            smsg = req % endpoint
+            sendsock.settimeout(2)
+            sendsock.sendall(smsg)
+            rbuf = " "
+            while rbuf[-1] != '\n':
+                rbuf = sendsock.recv(256)
+            sendsock.close()
+            t2 = datetime.datetime.now()
+        except socket.timeout:
+            return 999
+
+        except Exception, ex:
+            print endpoint, ex
+            return 9999
+
+        ms = t2 - t1
+        return int(float(ms.microseconds) / 1000.0)
+
+
+    @staticmethod
+    def find_closest_region(logger):
+
+        connect_times = []
+
+        regions = boto.ec2.regions()
+
+        for regioninfo in regions:
+            ms = EC2Config.http_ping(regioninfo.endpoint)
+            logger.info("http ping time to %s (%s) : %s ms" % (regioninfo.name, regioninfo.endpoint, ms))
+            connect_times.append((regioninfo.name, ms))
+
+        connect_times = sorted(connect_times, key=lambda x: x[1])
+
+        logger.info("%sClosest AWS endpoints to you appears to be [%s] with connect time %sms %s" % ( colorama.Fore.GREEN, 
+                            connect_times[0][0], connect_times[0][1], colorama.Style.RESET_ALL ))
+
+        return connect_times[0][0]
+
+    @staticmethod
+    def check_credentials(region, aws_access_key_id, aws_secret_access_key, logger):
+
+        try:
+            conn = boto.ec2.connect_to_region( region, aws_access_key_id=aws_access_key_id,
+                                                aws_secret_access_key=aws_secret_access_key)
+
+            if not conn:
+                return None
+            
+            conn.get_all_regions()
+        except boto.exception.EC2ResponseError:
+            return None
+
+        return conn
+
+    @staticmethod
+    def configure():
+
+        good_creds = False
+
+        while not good_creds:
+            acc_key_id  = raw_input("Enter aws_access_key_id:").strip()
+            acc_key     = raw_input("Enter aws_secret_access_key:").strip()
+
+            confirmed = False
+            while not confirmed:
+                region      = raw_input("Enter default region [Enter to find closest region]:")
+                if region.strip():
+                    break
+                else:
+                    logger.info("Finding nearest AWS region endpoint...")
+                    region = EC2Config.find_closest_region(logger)
+                    confirm = raw_input("Accept %s?[y]" % region) or "y"
+                    if confirm[0].lower() == "y":
+                        config_data['closest_region'] = region
+                        break
+
+            # test creds
+            ret = EC2Config.check_EC2_credentials(region, acc_key_id, acc_key, logger)
+
+            if ret:
+                good_creds = True
+                logger.info("%sCredentials verified.%s" % 
+                                (colorama.Fore.GREEN, colorama.Style.RESET_ALL))
+            else:
+                logger.error("%sCould not connect to region [%s] with these credentials, please try again%s" % 
+                                (colorama.Fore.RED, region, colorama.Style.RESET_ALL))
+
+        config_data["aws_access_key_id"] = acc_key_id
+        config_data["aws_secret_access_key"] = acc_key
+
+        config_data["region"] = region
+
+        return config_data
 

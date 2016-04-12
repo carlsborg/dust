@@ -11,7 +11,7 @@
 #
 
 '''
-Cloud cluster class   
+Cluster command engine
 '''
 
 import time
@@ -50,8 +50,8 @@ class CommandState(object):
         self.global_state[state_var] = value
 
 
-class Cluster(object):
-    ''' 
+class ClusterCommandEngine(object):
+    '''
     Provides access to the cloud and node objects and methods for resolving a target node name to a list of nodes.
     Loads commands and invokes them. Maintains command state. 
     This object is accessible from all commands. 
@@ -84,6 +84,9 @@ class Cluster(object):
         self.clusters = {}
         self.read_all_clusters()
 
+        self.write_user_data()
+
+
     def validate_config(self):
 
         required = ["aws_access_key_id", "aws_secret_access_key", "region"]
@@ -91,6 +94,12 @@ class Cluster(object):
             if s not in self.dust_config_data.keys():
                 logger.error("Config data [%s] is missing [%s] key" % (str(self.dust_config_data.keys()), s))
                 raise Exception("Bad config.")
+
+    def write_user_data(self):
+
+        closest_region = self.dust_config_data.get("closest_region")
+        if closest_region:
+            self.update_user_data("closest_region", { "region" : closest_region } )
 
     def invalidate_cache(self):
 
@@ -325,7 +334,7 @@ class Cluster(object):
             if not region:
                 region = self.cloud.region
 
-            keymap = self.get_user_data('ec2-key-mapping') or {}
+            keymap = self.get_user_data().get('ec2-key-mapping') or {}
 
             keyname = "%s_dustcluster" % (region)
             keyname = keyname.translate(None, "-")
@@ -335,18 +344,26 @@ class Cluster(object):
             if keyfile:
                 return keyname, keyfile
 
-            keyname, keypath = self.cloud.create_keypair(keyname, self.default_keys_dir)
+            exists, keyname, keypath = self.cloud.create_keypair(keyname, self.default_keys_dir)
 
-            keymap[region_key] = keypath
-            self.update_user_data('ec2-key-mapping', keymap)
-            logger.info("Updating new key mappings to userdata [%s]" % self.user_data_file)
+            if exists and not keypath:
+                errstr = "WARNING: The default key %s exists in the cloud but wasnt created with the local dustcluster install. " % keyname
+                errstr += "You will be asked for the key file while attempting ssh operations into this cluster. "
+                errstr += "If you do not have access to this key, specify another key in the cluster config. "
+                logger.warn("%s%s%s" % (colorama.Fore.RED, errstr, colorama.Style.RESET_ALL))
+
+            if keypath:
+                keymap[region_key] = keypath
+                self.update_user_data('ec2-key-mapping', keymap)
+                logger.info("Updating new key mappings to userdata [%s]" % self.user_data_file)
+
             return keyname, keypath
 
         except Exception, ex:
             logger.exception(ex)
             logger.error('Error getting default keys: %s' % ex)
 
-    def get_user_data(self, section):
+    def get_user_data(self):
 
         if not self.user_data:
 
@@ -356,19 +373,23 @@ class Cluster(object):
             else:
                 self.user_data = {}
 
-        return self.user_data.get(section)
+        return self.user_data
 
 
     def update_user_data(self, section, data):
 
-        self.user_data[section] = data
-        str_yaml = yaml.dump(self.user_data, default_flow_style=False)
+        user_data = self.get_user_data()
+
+        user_data[section] = data
+        str_yaml = yaml.dump(user_data, default_flow_style=False)
 
         if not os.path.exists(self.dust_dir):
-            os.makedirs( self.dust_dir )
+            os.makedirs(self.dust_dir)
 
         with open(self.user_data_file, 'w') as yaml_file:
             yaml_file.write(str_yaml)
+
+        self.user_data = user_data
 
 
     def show(self, nodes, extended=False):
@@ -726,3 +747,4 @@ class Cluster(object):
 
     def logout(self):
         self.lineterm.shutdown()
+

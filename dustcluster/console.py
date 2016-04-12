@@ -21,14 +21,16 @@ import readline
 import logging
 import ConfigParser
 import stat
+import colorama
 
 from collections import defaultdict
 from cmd import Cmd
+from EC2 import EC2Config
 
 import paramiko
 from dustcluster import commands, lineterm
 from dustcluster import __version__
-from dustcluster.cluster import Cluster
+from dustcluster.cluster import ClusterCommandEngine
 import atexit
 
 from dustcluster import util
@@ -51,6 +53,8 @@ class Console(Cmd):
 
         util.intro()
 
+        logger.setLevel(logging.INFO)
+
         # read config/credentials 
         config_data = {}
         try:
@@ -63,7 +67,7 @@ class Console(Cmd):
                 config_data.update(self.read_config(self.aws_config_file))
 
             if not config_data.get('aws_access_key_id'):
-                logger.info("Welcome to dustcluster, creating config file:")
+                logger.info("%sWelcome to dustcluster, creating config file:%s"  % (colorama.Fore.GREEN, colorama.Style.RESET_ALL))
                 config_data = self.ask_and_write_credentials(self.dust_config_file)
 
         except Exception, e:
@@ -87,7 +91,7 @@ class Console(Cmd):
 
         self.commands = {}  # { cmd : (helpstr, module) }
         # startup
-        self.cluster = Cluster(config_data)
+        self.cluster = ClusterCommandEngine(config_data)
         self.cluster.load_commands()
  
         self.exit_flag = False
@@ -113,18 +117,11 @@ class Console(Cmd):
 
     def ask_and_write_credentials(self, config_file):
 
-        acc_key_id  = raw_input("Enter aws_access_key_id:").strip()
-        acc_key     = raw_input("Enter aws_secret_access_key:").strip()
-        region      = raw_input("Enter default region [us-east-1]:").strip() or "us-east-1"
-
-        config_data = {}
-        config_data["aws_access_key_id"] = acc_key_id
-        config_data["aws_secret_access_key"] = acc_key
-        config_data["region"] = region
+        config_data = EC2Config.configure()
 
         parser = ConfigParser.ConfigParser(config_data)
 
-        logger.info("Writing credentials to [%s] with user read/write permissions (0600)" % config_file)
+        logger.info("Writing credentials to [%s] with mode (0600)" % config_file)
 
         if not os.path.exists(self.dust_dir):
             os.makedirs(self.dust_dir)

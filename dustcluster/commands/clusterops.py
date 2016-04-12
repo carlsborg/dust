@@ -5,6 +5,8 @@ import yaml
 import boto
 import copy
 import os
+import colorama
+from dustcluster.EC2 import EC2Config
 
 commands = ['cluster']
 
@@ -46,6 +48,20 @@ def cluster(cmdline, cluster, logger):
 def list_clusters(args, cluster, logger):
     cluster.show_clusters()
 
+def get_closest_region(cluster, logger):
+
+    user_data = cluster.get_user_data()
+    region_data = user_data.get('closest_region')
+    if region_data and region_data.get('region'):
+        return region_data.get('region')
+
+    region = EC2Config.find_closest_region(logger)
+    region_data = { 'region' : region }
+    cluster.update_user_data('closest_region', region_data)
+
+    return region
+
+
 def create_cluster(args, cluster, logger):
     '''
         parse a yaml spec for a cluster and create a cloud formation 
@@ -64,6 +80,10 @@ def create_cluster(args, cluster, logger):
 
         cloud_spec = obj_yaml.get('cloud')
         target_region = cloud_spec.get('region')
+
+        if target_region == 'closest':
+            target_region = get_closest_region(cluster, logger)
+            cloud_spec['region'] = target_region
 
         # for default keys, etc
         if cluster.region != target_region:
@@ -230,8 +250,6 @@ def create_cluster(args, cluster, logger):
         # save it to ./dustcluster/clusters/name_region.cfn
         cfn_json = cfn_template.to_json()
 
-        logger.info(cfn_json)
-
         if not os.path.exists(cluster.clusters_dir):
             os.makedirs(cluster.clusters_dir)
 
@@ -254,7 +272,7 @@ def create_cluster(args, cluster, logger):
             cost_url = conn.estimate_template_cost(cfn_json)
             logger.info("Estimated running cost of this cluster at:  %s" % cost_url)
         except Exception, ex:
-            logger.info("Error calling estimate template costs.")
+            logger.info("Could not estimate template costs.")
 
         ret = raw_input("Create stack [y]:") or "y"
 
@@ -273,8 +291,8 @@ def create_cluster(args, cluster, logger):
         logger.exception('Error: %s' % e)
         return
 
-    logger.info( 'Cluster creation kicked off. see status with $cluster status %s.' %  cluster_name)
- 
+    logger.info( '%sCluster creation kicked off. see status with $cluster status %s.%s' %  
+                        (colorama.Fore.GREEN,cluster_name,colorama.Style.RESET_ALL))
 
 def delete_cluster(args, cluster, logger):
 

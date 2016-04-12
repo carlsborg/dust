@@ -24,7 +24,7 @@ required_packages = [
 setup(
     name = "dustcluster",
     version = dustcluster.__version__,
-    author = "Ran Dugal",
+    author = "R Dugal",
     author_email = "dugal@gmx.com",
     url='https://github.com/carlsborg/dust',
     description = "ssh cluster shell for AWS EC2",
@@ -40,7 +40,7 @@ setup(
         'Intended Audience :: Information Technology',
         'Natural Language :: English',
         'License :: OSI Approved :: GNU Affero General Public License v3',
-        'Operating System :: POSIX'
+        'Operating System :: POSIX',
         'Programming Language :: Python',
         'Programming Language :: Python :: 2.7',
         'Programming Language :: Python :: 2 :: Only',

@@ -11,6 +11,7 @@
 #
 
 import yaml
+import colorama
 
 '''
 dust command for invoking ssh operations on a set of nodes, or entering a raw ssh shell to a single node 
@@ -91,8 +92,9 @@ def _get_key_file(node, cluster, logger):
 
     keyfile = _get_key_location(node.key, cluster, logger)
     if not keyfile:
-        logger.error("No keyfile mapping found for key [%s]. This mapping should be in ~./dustcluster/userdata or the template" 
-                        %  node.key)
+        str_err = "No keyfile mapping found for key [%s]. This mapping should be in ~./dustcluster/userdata." % node.key
+        str_err += "Or as 'keyfile' in the cluster config"
+        logger.error("%s%s%s" %(colorama.Fore.RED, str_err, colorama.Style.RESET_ALL))
         return ""
 
     return keyfile
@@ -107,7 +109,8 @@ def _get_key_location(key, cluster, logger):
 
     state_key = 'atssh-keymap'
 
-    keymap = cluster.get_user_data('ec2-key-mapping') or {}
+    user_data = cluster.get_user_data()
+    keymap = user_data.get('ec2-key-mapping') or {}
 
     dirty = False
     keyfile = keymap.get("%s#%s" % (cluster.cloud.region,key))
@@ -115,6 +118,10 @@ def _get_key_location(key, cluster, logger):
         ret[key] = keyfile
     else:
         keypath = raw_input("Path to key %s for region %s:" % (key, cluster.cloud.region))
+        if not keypath or not path.exists(keypath):
+            logger.error("No key file at that location")
+            return ""
+
         keymap[str(cluster.cloud.region + '#' + key)] = keypath
         dirty = True
         ret[key] = keypath
