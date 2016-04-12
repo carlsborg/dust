@@ -117,7 +117,7 @@ class Console(Cmd):
 
     def ask_and_write_credentials(self, config_file):
 
-        config_data = EC2Config.configure()
+        config_data = EC2Config.configure(logger)
 
         parser = ConfigParser.ConfigParser(config_data)
 

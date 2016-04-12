@@ -424,8 +424,10 @@ class EC2Config(object):
         return conn
 
     @staticmethod
-    def configure():
+    def configure(logger):
 
+        config_data = {}
+    
         good_creds = False
 
         while not good_creds:
@@ -446,7 +448,7 @@ class EC2Config(object):
                         break
 
             # test creds
-            ret = EC2Config.check_EC2_credentials(region, acc_key_id, acc_key, logger)
+            ret = EC2Config.check_credentials(region, acc_key_id, acc_key, logger)
 
             if ret:
                 good_creds = True
