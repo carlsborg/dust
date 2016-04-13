@@ -327,37 +327,64 @@ class ClusterCommandEngine(object):
 
 
     def get_default_key(self, region=""):
-        ''' get the default key for current or specified region '''
+        ''' get the default key for current or specified region
+
+            first we go to user_data and get the default key name for this install
+            if its not there, create the name
+                              creaet the defauly key name entry
+                              create the key
+                                 -- if it already exists, show a warning
+                              create the mapping in user_data
+
+            query user data for the keys location
+        '''
 
         try:
 
             if not region:
                 region = self.cloud.region
 
+            user_data = self.get_user_data()
+            default_keynames = user_data.get('default-keynames') or {}
+
+            namekey = 'ec2-default-keyname-' + region 
+            default_keyname = ""
+            if default_keynames:
+                default_keyname = default_keynames.get(namekey) or {}
+
+            if not default_keynames or not default_keyname:
+                timestamp = time.strftime("%Y%m%d%H%M%S", time.gmtime())
+                default_keyname = "dust_%s_%s" % (region, timestamp)
+                default_keyname = default_keyname.translate(None, "-")
+                default_keynames[namekey] = default_keyname
+
+                exists, keyname, keypath = self.cloud.create_keypair(default_keyname, self.default_keys_dir)
+                self.update_user_data('default-keynames', default_keynames)
+
+                region_key = "%s#%s" % (region, default_keyname)
+
+                if exists and not keypath:
+                    errstr = "WARNING: The default key %s exists in the cloud but wasnt created with the local dustcluster install. " % keyname
+                    errstr += "You will be asked for the key file while attempting ssh operations into this cluster. "
+                    errstr += "If you do not have access to this key, specify another key in the cluster config. "
+                    logger.warn("%s%s%s" % (colorama.Fore.RED, errstr, colorama.Style.RESET_ALL))
+
+                if keypath:
+                    keymap = user_data.get('ec2-key-mapping') or {}
+                    keymap[region_key] = keypath
+                    self.update_user_data('ec2-key-mapping', keymap)
+                    logger.info("Updating new key mappings to userdata [%s]" % self.user_data_file)
+
+                return default_keyname, keypath
+
             keymap = self.get_user_data().get('ec2-key-mapping') or {}
-
-            keyname = "%s_dustcluster" % (region)
-            keyname = keyname.translate(None, "-")
-
-            region_key = "%s#%s" % (region, keyname)
+            region_key = "%s#%s" % (region, default_keyname)
             keyfile = keymap.get(region_key)
-            if keyfile:
-                return keyname, keyfile
+            if not keyfile:
+                errstr = "default key %s exists in user_data mapping but the file cannot be found" % default_keyname
+                logger.error("%s%s%s" % (colorama.Fore.RED, errstr, colorama.Style.RESET_ALL))
 
-            exists, keyname, keypath = self.cloud.create_keypair(keyname, self.default_keys_dir)
-
-            if exists and not keypath:
-                errstr = "WARNING: The default key %s exists in the cloud but wasnt created with the local dustcluster install. " % keyname
-                errstr += "You will be asked for the key file while attempting ssh operations into this cluster. "
-                errstr += "If you do not have access to this key, specify another key in the cluster config. "
-                logger.warn("%s%s%s" % (colorama.Fore.RED, errstr, colorama.Style.RESET_ALL))
-
-            if keypath:
-                keymap[region_key] = keypath
-                self.update_user_data('ec2-key-mapping', keymap)
-                logger.info("Updating new key mappings to userdata [%s]" % self.user_data_file)
-
-            return keyname, keypath
+            return default_keyname, keyfile
 
         except Exception, ex:
             logger.exception(ex)

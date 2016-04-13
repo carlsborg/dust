@@ -62,6 +62,82 @@ def get_closest_region(cluster, logger):
 
     return region
 
+def configure_security_groups(vpc_subnet, vpc_id):
+
+    node_sec_group = ec2.SecurityGroup('DustNodeSG')
+    node_sec_group.GroupDescription = "Allow incoming ssh and icmp and all intracluster tcp"
+    if vpc_subnet:
+        node_sec_group.VpcId = vpc_id
+
+    ssh_in_rule = ec2.SecurityGroupRule()
+    ssh_in_rule.FromPort = 22
+    ssh_in_rule.ToPort = 22
+    ssh_in_rule.CidrIp = "0.0.0.0/0"
+    ssh_in_rule.IpProtocol = 'tcp'
+
+    icmp_in_rule = ec2.SecurityGroupRule()
+    icmp_in_rule.FromPort = -1
+    icmp_in_rule.ToPort = -1
+    icmp_in_rule.CidrIp = "0.0.0.0/0"
+    icmp_in_rule.IpProtocol = 'icmp'
+
+    node_sec_group.SecurityGroupIngress = [ssh_in_rule, icmp_in_rule]
+
+    intracluster_sec_group = ec2.SecurityGroupIngress('DustIntraClusterSG')
+    if vpc_subnet:
+        intracluster_sec_group.GroupId = Ref(node_sec_group)
+    else:
+        intracluster_sec_group.GroupName = Ref(node_sec_group)
+    intracluster_sec_group.FromPort = 0 
+    intracluster_sec_group.ToPort = 65535
+    if vpc_subnet:
+        intracluster_sec_group.SourceSecurityGroupId = Ref(node_sec_group)
+    else:
+        intracluster_sec_group.SourceSecurityGroupName = Ref(node_sec_group)
+    intracluster_sec_group.IpProtocol = "-1"
+
+    return node_sec_group, intracluster_sec_group 
+
+def configure_vpc(cfn_template, cluster_name):
+
+    vpc = ec2.VPC("DustVPC")
+    vpc.CidrBlock = "10.0.0.0/16"
+    vpc.Tags = [ec2.Tag("Name:", cluster_name)]
+    cfn_template.add_resource(vpc)
+    vpc_id = Ref(vpc)
+
+    subnet = ec2.Subnet('dustSubnet')
+    subnet.VpcId = vpc_id
+    subnet.CidrBlock = "10.0.0.0/24"
+    cfn_template.add_resource(subnet)
+    vpc_subnet = Ref(subnet)
+
+    net_gateway = ec2.InternetGateway('dustGateway')
+    cfn_template.add_resource(net_gateway)
+
+    attach_net_gateway = ec2.VPCGatewayAttachment('dustAttachGateway')
+    attach_net_gateway.VpcId = vpc_id
+    attach_net_gateway.InternetGatewayId = Ref(net_gateway)
+    cfn_template.add_resource(attach_net_gateway)
+
+    route_table = ec2.RouteTable('dustRoutetable')
+    route_table.VpcId = vpc_id
+    cfn_template.add_resource(route_table)
+
+    route = ec2.Route('dustRoute')
+    route.RouteTableId = Ref(route_table)
+    route.DestinationCidrBlock = "0.0.0.0/0"
+    route.GatewayId = Ref(net_gateway)
+    route.DependsOn = "dustAttachGateway"
+    cfn_template.add_resource(route)
+
+    attach_route = ec2.SubnetRouteTableAssociation('dustAttachRouteTable')
+    attach_route.SubnetId = vpc_subnet
+    attach_route.RouteTableId = Ref(route_table)
+    cfn_template.add_resource(attach_route)
+
+    return vpc_id, vpc_subnet
+
 
 def create_cluster(args, cluster, logger):
     '''
@@ -85,6 +161,7 @@ def create_cluster(args, cluster, logger):
         ami_provider = EC2AMIProvider()
         if target_region == 'closest' or not target_region:
             target_region = get_closest_region(cluster, logger)
+            cloud_spec['region'] = target_region
 
         # for default keys, etc
         if cluster.region != target_region:
@@ -104,11 +181,17 @@ def create_cluster(args, cluster, logger):
         if not cluster_name:
             raise Exception("No cluster name in template %s" % specfile)
 
+        if cluster_name in cluster.clusters:
+            obj_yaml = cluster.clusters[cluster_name]
+            existing_region = obj_yaml.get('cloud').get('region').lower()
+            raise Exception("A cluster named %s exists in region %s. Please use a different name" % 
+                                    (cluster_name,existing_region))
+
         # placement group
-        enable_placement = cluster_spec.get('use_placement_group')
+        enable_placement = str(cluster_spec.get('use_placement_group')).lower()
 
         placement_group = None
-        if enable_placement:
+        if enable_placement == 'yes' or enable_placement == 'true':
             placement_group = ec2.PlacementGroup('DustPlacementGroup')
             placement_group.Strategy='cluster'
             cfn_template.add_resource(placement_group)
@@ -125,42 +208,9 @@ def create_cluster(args, cluster, logger):
         vpc_id     = None
         vpc_subnet = None
 
-        if str(cluster_spec.get('create_vpc')).lower() == 'yes':
-            vpc = ec2.VPC("DustVPC")
-            vpc.CidrBlock = "10.0.0.0/16"
-            vpc.Tags = [ec2.Tag("Name:", cluster_name)]
-            cfn_template.add_resource(vpc)
-            vpc_id = Ref(vpc)
-
-            subnet = ec2.Subnet('dustSubnet')
-            subnet.VpcId = vpc_id
-            subnet.CidrBlock = "10.0.0.0/24"
-            cfn_template.add_resource(subnet)
-            vpc_subnet = Ref(subnet)
-
-            net_gateway = ec2.InternetGateway('dustGateway')
-            cfn_template.add_resource(net_gateway)
-
-            attach_net_gateway = ec2.VPCGatewayAttachment('dustAttachGateway')
-            attach_net_gateway.VpcId = vpc_id
-            attach_net_gateway.InternetGatewayId = Ref(net_gateway)
-            cfn_template.add_resource(attach_net_gateway)
-
-            route_table = ec2.RouteTable('dustRoutetable')
-            route_table.VpcId = vpc_id
-            cfn_template.add_resource(route_table)
-
-            route = ec2.Route('dustRoute')
-            route.RouteTableId = Ref(route_table)
-            route.DestinationCidrBlock = "0.0.0.0/0"
-            route.GatewayId = Ref(net_gateway)
-            route.DependsOn = "dustAttachGateway"
-            cfn_template.add_resource(route)
-
-            attach_route = ec2.SubnetRouteTableAssociation('dustAttachRouteTable')
-            attach_route.SubnetId = vpc_subnet
-            attach_route.RouteTableId = Ref(route_table)
-            cfn_template.add_resource(attach_route)
+        vpc_flag = str(cluster_spec.get('create_vpc')).lower()
+        if vpc_flag == 'yes' or vpc_flag == 'true':
+            vpc_id, vpc_subnet = configure_vpc(cfn_template, cluster_name)
 
         elif cluster_spec.get('vpc_id'):
             vpc_id     = cluster_spec.get('vpc_id')
@@ -170,45 +220,13 @@ def create_cluster(args, cluster, logger):
             logger.error("Need to specify subnet_id and vpc_id if you want to launch nodes into a vpc")
             return
 
-        # create a security group
-        node_sec_group = ec2.SecurityGroup('DustNodeSG')
-        node_sec_group.GroupDescription = "Allow incoming ssh and icmp and all intracluster tcp"
-        if vpc_subnet:
-            node_sec_group.VpcId = vpc_id
-
-        ssh_in_rule = ec2.SecurityGroupRule()
-        ssh_in_rule.FromPort = 22
-        ssh_in_rule.ToPort = 22
-        ssh_in_rule.CidrIp = "0.0.0.0/0"
-        ssh_in_rule.IpProtocol = 'tcp'
-
-        icmp_in_rule = ec2.SecurityGroupRule()
-        icmp_in_rule.FromPort = -1
-        icmp_in_rule.ToPort = -1
-        icmp_in_rule.CidrIp = "0.0.0.0/0"
-        icmp_in_rule.IpProtocol = 'icmp'
-
-        node_sec_group.SecurityGroupIngress = [ssh_in_rule, icmp_in_rule]
-
-
+        # create security groups
+        node_sec_group, intracluster_sec_group= configure_security_groups(vpc_subnet, vpc_id)
         cfn_template.add_resource(node_sec_group)
-
-        intracluster_sec_group = ec2.SecurityGroupIngress('DustIntraClusterSG')
-        if vpc_subnet:
-            intracluster_sec_group.GroupId = Ref(node_sec_group)
-        else:
-            intracluster_sec_group.GroupName = Ref(node_sec_group)
-        intracluster_sec_group.FromPort = 0 
-        intracluster_sec_group.ToPort = 65535
-        if vpc_subnet:
-            intracluster_sec_group.SourceSecurityGroupId = Ref(node_sec_group)
-        else:
-            intracluster_sec_group.SourceSecurityGroupName = Ref(node_sec_group)
-        intracluster_sec_group.IpProtocol = "-1"
         cfn_template.add_resource(intracluster_sec_group)
 
-        # create instances 
-
+        # create instances
+        have_nano = False 
         for node in nodes:
             nodename = node.get('nodename')
             instance = ec2.Instance(nodename, 
@@ -234,6 +252,9 @@ def create_cluster(args, cluster, logger):
                 node['username'] = default_login_user
 
             instance.InstanceType = node.get('instance_type')
+
+            if 'nano' in instance.InstanceType:
+                have_nano = True
 
             if create_vpc:
                 instance.DependsOn = "dustAttachGateway"
@@ -268,7 +289,6 @@ def create_cluster(args, cluster, logger):
 
         logger.info("Wrote CloudFormation template to %s" % writecfnto)
 
-
         logger.info("Validating template ...")
         conn = get_cfn_connection(logger, cluster, target_region)
 
@@ -278,8 +298,9 @@ def create_cluster(args, cluster, logger):
             print valid.capabilities, valid.capabilities_reason, valid.description
 
         try:
-            cost_url = conn.estimate_template_cost(cfn_json)
-            logger.info("Estimated running cost of this cluster at:  %s" % cost_url)
+            if not have_nano: # boto dumps error with nano
+                cost_url = conn.estimate_template_cost(cfn_json)
+                logger.info("Estimated running cost of this cluster at:  %s" % cost_url)
         except Exception, ex:
             logger.info("Could not estimate template costs.")
 
@@ -298,10 +319,13 @@ def create_cluster(args, cluster, logger):
 
     except Exception, e:
         logger.exception('Error: %s' % e)
+        logger.error('%sCluster create threw. Please check for new instances with refresh.%s' % (colorama.Fore.RED, colorama.Style.RESET_ALL))
         return
 
     logger.info( '%sCluster creation kicked off. see status with $cluster status %s.%s' %  
                         (colorama.Fore.GREEN,cluster_name,colorama.Style.RESET_ALL))
+
+    logger.info( 'Refresh node state with the $refresh command.')
 
 def delete_cluster(args, cluster, logger):
 
@@ -330,6 +354,9 @@ def delete_cluster(args, cluster, logger):
         cluster.read_all_clusters()
 
         cluster.invalidate_cache()
+
+        if cluster.cur_cluster == cluster_name:
+            cluster.cur_cluster = ""
         logger.info("Deleted cluster")
 
     except Exception, e:
@@ -346,7 +373,7 @@ def expand_clones(nodes):
         counter = 0
         clones = int(node.get('count') or 1)
 
-        if clones == 1:
+        if not node.get('count'):
             ret_nodes.append(node)
         else:
             for i in range(clones):
@@ -376,6 +403,7 @@ def save_cluster(cluster, obj_yaml, logger):
 
     if ret:
         logger.info("Wrote cluster to %s" % ret)
+    return ret
 
 
 def get_cfn_connection(logger, cluster, region):
@@ -445,6 +473,8 @@ def cluster_status(args, cluster, logger):
     except Exception, e:
         logger.exception('Error: %s' % e)
         return
+
+    logger.info('%sUse $refresh to update node state%s' % (colorama.Fore.GREEN, colorama.Style.RESET_ALL))
 
     logger.info('ok')
 

@@ -20,7 +20,7 @@ def setup_logger(sname):
 
     console = logging.StreamHandler()
 
-    formatter = logging.Formatter('\rdust:%(asctime)s | %(message)s')
+    formatter = logging.Formatter('\rdust:%(asctime)s | %(message)s', '%H:%M:%S')
     console.setFormatter(formatter)
 
     logger.addHandler(console)

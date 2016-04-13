@@ -51,7 +51,7 @@ StackEvent AWS::EC2::Instance worker1 CREATE_IN_PROGRESS
 dust:2016-03-30 13:52:01,636 | ok
 ```
 
-You can see the new cluster with $show/ex:
+You can see the new cluster with $show or $show -v:
 
 ```
 dust:2016-04-01 23:48:57,732 | Nodes in region: us-east-1
@@ -182,27 +182,4 @@ cluster:
 ```
 
 This creates an VPC, internet gateway, and public subnet and configures the routing tables.
-
-
-**Check for Enhanced Networking**
-
-
-You can check if enhanced networking is enabled with:
-
-> dust$ @ ethtool -i eth0 | grep driver
-
-If Enhanced Networking is enabled the driver is ixgbevf instead of vif
-
-```
-[master] driver: ixgbevf
-[master] 
-
-
-[worker1] driver: ixgbevf
-[worker1] 
-
-
-[worker0] driver: ixgbevf
-[worker0] 
-```
 
