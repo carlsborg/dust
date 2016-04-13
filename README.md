@@ -71,12 +71,11 @@ You can then either:
 
 1) [Assign existing instances to clusters](docs/assign_to.md)
 
-See [Using DustCluster to bring up high performance cluster infrastructure on AWS EC2](https://zvzzt.wordpress.com/2016/04/11/using-dustcluster-to-bring-up-high-performance-cluster-infrastructure-on-aws-ec2/)
-
-
 and/or
 
 2) [Bring up a new cluster from a minimal spec](docs/create_cluster.md) with a single command
+(see also [Using DustCluster to bring up high performance cluster infrastructure on AWS EC2](https://zvzzt.wordpress.com/2016/04/11/using-dustcluster-to-bring-up-high-performance-cluster-infrastructure-on-aws-ec2/))
+
 
 Both ways, cluster configs are saved to ~/.dustcluster/clusters. and you will henceforth see clusters with named nodes. e.g.
 
