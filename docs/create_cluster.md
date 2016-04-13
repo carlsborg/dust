@@ -14,27 +14,22 @@ sample1.yaml
 ```
 cloud:
   provider: ec2
-  region: us-east-1
+  region: closest
 
 cluster:
   name: sample1
 
 nodes:
 
-- image: ami-8fcee4e5
-  instance_type: t2.nano
+- instance_type: t2.nano
   nodename: master
-  username: ec2-user
-
-- image: ami-8fcee4e5
-  instance_type: t2.nano
+  
+- instance_type: t2.nano
   nodename: worker
-  username: ec2-user
   count: 2
 ```
 
-Note: the second node has count = 2, so nodes will be called
-worker1, worker2
+Note: the second node has count = 2, so nodes will be called worker1, worker2
 
 > dust$ cluster create sample1.yaml
 
@@ -90,6 +85,30 @@ You can list all clusters, and delete a cluster with:
 
 
 Notes:
+
+**Specifying region, AMI and login user**
+
+The cluster config above uses the region 'closest'. This launches the cluster in the closest region, 
+and using a recent Amazon Linux AMI with the default login user. You can instead specify these explictly:
+
+```
+cloud:
+  provider: ec2
+  region: us-east-1
+```
+
+and
+
+```
+nodes:
+
+- image: ami-8fcee4e5
+  instance_type: t2.nano
+  nodename: master
+  username: ec2-user
+  key: YourKeyName
+```
+
 
 **Authentication**:
 

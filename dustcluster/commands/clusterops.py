@@ -7,6 +7,7 @@ import copy
 import os
 import colorama
 from dustcluster.EC2 import EC2Config
+from dustcluster.ec2amiprovider import EC2AMIProvider
 
 commands = ['cluster']
 
@@ -81,9 +82,9 @@ def create_cluster(args, cluster, logger):
         cloud_spec = obj_yaml.get('cloud')
         target_region = cloud_spec.get('region')
 
-        if target_region == 'closest':
+        ami_provider = EC2AMIProvider()
+        if target_region == 'closest' or not target_region:
             target_region = get_closest_region(cluster, logger)
-            cloud_spec['region'] = target_region
 
         # for default keys, etc
         if cluster.region != target_region:
@@ -223,7 +224,15 @@ def create_cluster(args, cluster, logger):
                     default_key, keypath = cluster.get_default_key(target_region)
                 instance.KeyName = default_key
 
-            instance.ImageId = node.get('image')
+            image_id = node.get('image')
+            if image_id:
+                instance.ImageId = image_id
+            else: 
+                default_ami, default_login_user = ami_provider.get_ami_for_region('amazonlinux', target_region)
+                instance.ImageId = default_ami
+                node['image'] = default_ami
+                node['username'] = default_login_user
+
             instance.InstanceType = node.get('instance_type')
 
             if create_vpc:
