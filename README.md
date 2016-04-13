@@ -73,7 +73,8 @@ You can then either:
 
 and/or
 
-2) [Bring up a new cluster from a minimal spec](docs/create_cluster.md) with a single command
+2) [Bring up a new cluster from a minimal spec](docs/create_cluster.md) with a single command. 
+(Also see [this blog post](https://zvzzt.wordpress.com/2016/04/11/using-dustcluster-to-bring-up-high-performance-cluster-infrastructure-on-aws-ec2/) on high performance cluster infrastructure quick start.)
 
 Both ways, cluster configs are saved to ~/.dustcluster/clusters. and you will henceforth see clusters with named nodes. e.g.
 
