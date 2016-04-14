@@ -236,6 +236,9 @@ class Console(Cmd):
         exit - exit dust shell
         '''     
         logger.info( 'Exiting dust console. Find updates, file bugs at http://github.com/carlsborg/dust.')
+        logger.info( '%sThis is an early beta release. Consider updating with $pip install dustcluster --upgrade"%s.' %
+                     (colorama.Fore.GREEN, colorama.Style.RESET_ALL))
+
         self.cluster.logout()
         self.exit_flag = True
         return True

@@ -176,6 +176,5 @@ def deduce_selector(node, i):
         if tag.lower() == 'name' and val.strip():
             return "tags=%s:%s" % ( "Name", str(node.get('tags')[tag]) )
 
-    return 'id=%s' % str(node.id)
-
+    return 'id=%s' % str(node.get('id'))
 
