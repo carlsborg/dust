@@ -197,7 +197,8 @@ class Console(Cmd):
         if docstr and '\n' in docstr:
             helpstr = docstr.split('\n')[1]
             if '-' in helpstr:
-                cmd, doc = helpstr.split('-')
+                pos = helpstr.rfind('-')
+                cmd, doc = helpstr[:pos].strip(), helpstr[pos+1:].strip()
             else:
                 doc = ""
             print "%-40s%s" % (cmd.strip(), doc.strip())
