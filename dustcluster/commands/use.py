@@ -54,10 +54,10 @@ def use(cmdline, cluster, logger):
 
 def assign(cmdline, cluster, logger):
     '''
-    assign filter [cluster] - assign the nodes from a filter expression to a new or existing cluster
+    assign filter_exp - assign the nodes from a filter expression to a new cluster
 
     Notes:
-    Applies the filter to nodes in the current region, asks for ssh details, 
+    Applies the filter to nodes in the current region, asks for login details, 
     and then save this in a cluster config file for future use.
 
     If any of the filtered nodes are already assigned to a cluster an error 
@@ -66,7 +66,7 @@ def assign(cmdline, cluster, logger):
     Examples:
     assign tags="aws:cloudformation:stack-name":ClusterA
     assign tags="*cloudformation*":ClusterA
-    assign key=prodkey ClusterA
+    assign key=prodkey
     '''
 
     args = cmdline.split()

@@ -139,15 +139,20 @@ class ClusterCommandEngine(object):
         for cmd, (shelp, cmdmod) in self._commands.items():
             logger.debug( '%s %s' % (cmdmod.__name__, shelp.split('\n')[1]))
 
-    def  get_commands(self):
+    def get_commands(self):
         return self._commands
 
     def handle_command(self, cmd, arg):
-        cmddata = self._commands.get(cmd)
-        if cmddata:
-            _ , cmdmod = cmddata
-            func = getattr(cmdmod,  cmd)
-            func(arg, self, logger)
+
+        try:
+            cmddata = self._commands.get(cmd)
+            if cmddata:
+                _ , cmdmod = cmddata
+                func = getattr(cmdmod,  cmd)
+                func(arg, self, logger)
+                return True
+        except Exception, ex:
+            logger.exception(ex)
             return True
 
         return False
@@ -720,7 +725,11 @@ class ClusterCommandEngine(object):
         filterkey, filterval = "", ""
         if target_node_name:
             if '=' in target_node_name:
-                filterkey, filterval = target_node_name.split("=")
+                parts = target_node_name.split("=")
+                if len(parts) != 2:
+                    str_err = "Filter format error. Should be key=value for node properties or tags=key:value for tags. Use quotes if needed."
+                    raise Exception("%s%s%s" %(colorama.Fore.RED, str_err, colorama.Style.RESET_ALL))
+                filterkey, filterval  = parts
             else:
                 filterkey, filterval = 'name', target_node_name
 

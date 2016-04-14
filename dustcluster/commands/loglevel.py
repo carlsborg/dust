@@ -42,6 +42,7 @@ def loglevel(cmdline, cluster, logger):
 def set_loglevel(logger, level):
 
     logging.getLogger().setLevel(level)
+    logger.setLevel(level)
 
     for mname, mlogger in logging.Logger.manager.loggerDict.iteritems():
         if getattr(mlogger, 'setLevel', None):

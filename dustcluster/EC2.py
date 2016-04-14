@@ -150,7 +150,7 @@ class EC2Node(object):
                                 'ip'       : 'ip_address'
                                }
 
-        self.extended_fields = [ 'dns_name', 'image', 'tags', 'key', 'launch_time', 'vpc', 'groups']
+        self.extended_fields = [ 'dns_name', 'image', 'tags', 'key', 'launch_time', 'username', 'groups']
 
         self.all_fields = ['ami_launch_index', 'architecture', 'block_device_mapping', 'client_token',  
                     'dns_name', 'ebs_optimized', 'group_name', 'groups', 'hypervisor', 'id', 'image_id', 'instance_profile', 

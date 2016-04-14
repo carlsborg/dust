@@ -18,10 +18,15 @@ commands  = ['show', 'refresh', 'start', 'stop', 'terminate']
 
 def show(cmdline, cluster, logger):
     '''
-    show  [filter]  - Show all nodes or filtered nodes
+    show  [-vv] [filter]  - Show all nodes or filtered nodes
 
-    Show node data from in memory cache. Use $refresh to update cache.  
+    Show node data from in memory cache. 
+    Use $refresh to update cache.  
     Shows only nodes selected by the use command, if any.
+
+    Example:
+    show -v launch_time=*2016-04*
+    show -vv ip=52.51* 
     '''
 
     args = cmdline.split()
