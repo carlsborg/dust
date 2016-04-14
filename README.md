@@ -364,3 +364,13 @@ Type help or ? inside the dust shell for more
 
 Unrecognized commands drop to the system shell, so you can edit files, run configuration management tools locally
 from the same prompt.
+
+
+### Debugging 
+
+See verbose AWS and ssh logging with
+
+> dust$ loglevel debug
+
+> dust$ loglevel info
+

@@ -11,6 +11,7 @@
 #
 
 import yaml
+import os
 import colorama
 
 '''
@@ -118,7 +119,7 @@ def _get_key_location(key, cluster, logger):
         ret[key] = keyfile
     else:
         keypath = raw_input("Path to key %s for region %s:" % (key, cluster.cloud.region))
-        if not keypath or not path.exists(keypath):
+        if not keypath or not os.path.exists(keypath):
             logger.error("No key file at that location")
             return ""
 

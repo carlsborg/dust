@@ -13,6 +13,7 @@
 import logging
 import paramiko
 import boto
+from dustcluster import util
 
 ''' dust commands to set log levels on all module loggers ''' 
 
@@ -42,13 +43,21 @@ def set_loglevel(logger, level):
 
     logging.getLogger().setLevel(level)
 
-    logging.getLogger("paramiko").setLevel(level)
-
-    plogger = paramiko.util.logging.getLogger()
-    plogger.setLevel(level)
-
     for mname, mlogger in logging.Logger.manager.loggerDict.iteritems():
         if getattr(mlogger, 'setLevel', None):
             logger.debug('setting loglevel on %s' % mname)
             mlogger.setLevel(level)
+
+    # handle paramiko separately, its logs at INFO way too liberally
+
+    paramiko_logger = logging.getLogger("paramiko")
+    if len(paramiko_logger.handlers) == 0:
+        util.setup_logger("paramiko")
+
+    if (level == logging.INFO):
+        paramiko_logger.setLevel(logging.ERROR)
+        logging.getLogger("paramiko.transport").setLevel(logging.ERROR)
+    elif (level == logging.DEBUG):
+        paramiko_logger.setLevel(logging.DEBUG)
+        logging.getLogger("paramiko.transport").setLevel(logging.DEBUG)
 

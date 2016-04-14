@@ -563,7 +563,7 @@ class ClusterCommandEngine(object):
         else:
             filterkey, filterval = "tags", "name:%s" % nodename
 
-        logger.debug("matching template node filters [%s=%s]to cluster nodes" % (filterkey, filterval))
+        #logger.debug("matching template node filters [%s=%s]to cluster nodes" % (filterkey, filterval))
         matching_nodes = self._filter(cluster_nodes, filterkey, filterval)
 
         return matching_nodes
