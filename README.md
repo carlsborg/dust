@@ -61,6 +61,8 @@ All commands you see in dust cluster are implemented as plugins.
 
 ### Getting started
 
+sudo pip install dustcluster
+
 At a bash prompt, drop into a dust shell:
 
 > bash$ dust
