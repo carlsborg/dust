@@ -11,6 +11,8 @@ Status:
 
 See setup.py for dependencies.
 
+[![Build Status](https://travis-ci.org/carlsborg/dust.svg?branch=master)](https://travis-ci.org/carlsborg/dust)
+
 
 Table of Contents
 =================
