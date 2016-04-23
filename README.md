@@ -11,8 +11,7 @@ Status:
 
 See setup.py for dependencies.
 
-[![Build Status](https://travis-ci.org/carlsborg/dust.svg?branch=master)](https://travis-ci.org/carlsborg/dust)
-
+[![Build Status](https://travis-ci.org/carlsborg/dust.svg?branch=master)](https://travis-ci.org/carlsborg/dust) [![PyPI version](https://badge.fury.io/py/dustcluster.svg)](https://badge.fury.io/py/dustcluster)
 
 Table of Contents
 =================
