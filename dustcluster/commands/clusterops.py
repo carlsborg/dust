@@ -435,8 +435,8 @@ def cluster_status(args, cluster, logger):
     '''
 
     try:
-
-        cluster_name = args[1]
+        
+        cluster_name = None if len(args)<2 else args[1] 
 
         if not cluster_name:
             conn = get_cfn_connection(logger, cluster, cluster.cloud.region)

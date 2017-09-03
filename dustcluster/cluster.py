@@ -360,7 +360,7 @@ class ClusterCommandEngine(object):
             if not default_keynames or not default_keyname:
                 timestamp = time.strftime("%Y%m%d%H%M%S", time.gmtime())
                 default_keyname = "dust_%s_%s" % (region, timestamp)
-                default_keyname = default_keyname.translate(None, "-")
+                default_keyname = default_keyname.replace("-", "")
                 default_keynames[namekey] = default_keyname
 
                 exists, keyname, keypath = self.cloud.create_keypair(default_keyname, self.default_keys_dir)

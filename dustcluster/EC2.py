@@ -18,6 +18,7 @@ import boto, boto.ec2
 import socket
 import datetime
 import colorama
+import time
 
 from dustcluster.util import setup_logger
 logger = setup_logger( __name__ )
@@ -367,7 +368,7 @@ class EC2Config(object):
         req = '''GET / HTTP/1.1\nUser-Agent: DustCluster\nHost: %s\nAccept: */*\n\n'''
 
         try:
-            t1 = datetime.datetime.now()
+            t1 = time.time() * 1000
             sendsock = socket.create_connection((endpoint, 80))
             smsg = req % endpoint
             sendsock.settimeout(2)
@@ -376,7 +377,7 @@ class EC2Config(object):
             while rbuf[-1] != '\n':
                 rbuf = sendsock.recv(256)
             sendsock.close()
-            t2 = datetime.datetime.now()
+            t2 = time.time() * 1000
         except socket.timeout:
             return 999
 
@@ -384,8 +385,7 @@ class EC2Config(object):
             print endpoint, ex
             return 9999
 
-        ms = t2 - t1
-        return int(float(ms.microseconds) / 1000.0)
+        return int(t2 - t1)
 
 
     @staticmethod

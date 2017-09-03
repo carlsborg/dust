@@ -39,7 +39,6 @@ logger = util.setup_logger( __name__ )
 class Console(Cmd):
     ''' command line tool to control a cloud cluster '''
 
-    prompt = "dust:%s$ " % socket.gethostname()
     dustintro  = "Dust cluster shell, version %s. Type ? for help." % __version__
     default_keypath = os.path.join(os.getcwd(), 'keys')
 
@@ -102,6 +101,13 @@ class Console(Cmd):
         if self.cluster.clusters:
             print "\nAvailable clusters:"
             self.cluster.show_clusters()
+
+    @property
+    def prompt(self):
+        if self.cluster.cloud and self.cluster.cloud.region:
+            return "[%s]$ " % self.cluster.cloud.region
+        else:
+            return "[dust]$ "
 
     def read_config(self, config_file):
 
