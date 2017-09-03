@@ -10,7 +10,7 @@ if 'posix' not in os.name:
     status = 'Dust has only been tested with on Linux. Exiting'
     raise Exception(status) 
 
-from setuptools import setup
+from distutils.core import setup
 import dustcluster
 
 required_packages = [
@@ -30,9 +30,8 @@ setup(
     description = "ssh cluster shell for AWS EC2",
     license = "GPL Affero",
     packages=['dustcluster','dustcluster/commands'],
-    install_requires=required_packages,
     scripts = ['bin/dust'],
-    classifiers=(
+    classifiers=[
         'Development Status :: 4 - Beta',
         'Environment :: Console',
         'Intended Audience :: Developers',
@@ -46,7 +45,7 @@ setup(
         'Programming Language :: Python :: 2 :: Only',
         'Topic :: System :: Installation/Setup',
         'Topic :: System :: Systems Administration',
-        'Topic :: Utilities',
-        )
+        'Topic :: Utilities'
+        ]
     )
 
