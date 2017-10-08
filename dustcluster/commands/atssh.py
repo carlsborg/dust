@@ -110,7 +110,7 @@ def _get_key_location(key, cluster, logger):
 
     state_key = 'atssh-keymap'
 
-    user_data = cluster.get_user_data()
+    user_data = cluster.config.get_userdata()
     keymap = user_data.get('ec2-key-mapping') or {}
 
     dirty = False

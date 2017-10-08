@@ -35,26 +35,12 @@ def tag(cmdline, cluster, logger):
             logger.info('No running nodes found.')
             return
 
-        conn = cluster.cloud.conn()
+        client = cluster.cloud.client()
         r_ids = [node.get('id') for node in target_nodes]
 
-        tagsdict = {}
+        tagparam = get_tag_param(taglist)
 
-        for tag in taglist:
-
-            if "=" in tag:
-                tagkey, tagval = tag.split("=")
-            else:
-                tagkey = tag
-                tagval = ""
-
-            if tagkey.startswith("aws"):
-                logger.error("Error: tagname cannot start with [aws].")
-                return
-
-            tagsdict[tagkey] = tagval
-
-        conn.create_tags(r_ids, tagsdict)
+        client.create_tags(Resources=r_ids, Tags=tagparam)
 
         # refresh from cloud next operation
         cluster.invalidate_cache()
@@ -98,26 +84,12 @@ def untag(cmdline, cluster, logger):
             logger.info('No running nodes found.')
             return
 
-        conn = cluster.cloud.conn()
+        client = cluster.cloud.client()
         r_ids = [node.get('id') for node in target_nodes]
 
-        tagsdict = {}
+        tagparam = get_tag_param(taglist)
 
-        for tag in taglist:
-
-            if "=" in tag:
-                tagkey, tagval = tag.split("=")
-            else:
-                tagkey = tag
-                tagval = None
-
-            if tagkey.startswith("aws"):
-                logger.error("Error: tagname cannot start with [aws].")
-                return
-
-            tagsdict[tagkey] = tagval
-
-        conn.delete_tags(r_ids, tagsdict)
+        client.delete_tags(Resources=r_ids, Tags=tagparam)
 
         # refresh from cloud next operation
         cluster.invalidate_cache()
@@ -127,4 +99,24 @@ def untag(cmdline, cluster, logger):
         return
 
     logger.info( 'ok' )
+
+def get_tag_param(taglist):
+
+        tagparam = []
+
+        for tag in taglist:
+
+            if "=" in tag:
+                tagkey, tagval = tag.split("=")
+            else:
+                tagkey = tag
+                tagval = ""
+
+            if tagkey.startswith("aws"):
+                logger.error("Error: tagname cannot start with [aws].")
+                return
+
+            tagparam.append( {'Key': tagkey, 'Value': tagval } )
+
+        return tagparam
 

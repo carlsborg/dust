@@ -24,7 +24,7 @@ def setup_logger(sname):
     console.setFormatter(formatter)
 
     logger.addHandler(console)
-    
+    logger.setLevel(logging.INFO)
     logger.propagate = False
 
     return logger

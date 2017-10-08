@@ -14,11 +14,13 @@
 import logging
 import os, sys
 from copy import deepcopy, copy
-import boto, boto.ec2
+import boto3
+from botocore.exceptions import ClientError
 import socket
 import datetime
 import colorama
 import time
+import stat
 
 from dustcluster.util import setup_logger
 logger = setup_logger( __name__ )
@@ -34,6 +36,9 @@ class EC2Cloud(object):
             region = 'eu-west-1'
 
         self._connection = None
+
+        self._ec2client = None
+
         # cluster name
         self.name   = name
         self.key    = key
@@ -43,29 +48,32 @@ class EC2Cloud(object):
         self.keyfile = keyfile
         self.creds_map = creds_map
 
-    def connect(self):
+        self.ami_ids = {}
+
+    def connect(self):  
 
         if not self.region:
             raise Exception('No region specified. Will not connect.')
-  
-        conn = boto.ec2.connect_to_region(self.region,
-                                            aws_access_key_id=self.creds_map['aws_access_key_id'], 
-                                            aws_secret_access_key=self.creds_map['aws_secret_access_key'], 
-                                            )
+
+        conn = boto3.resource('ec2', region_name = self.region, 
+                              aws_access_key_id=self.creds_map['aws_access_key_id'], 
+                              aws_secret_access_key=self.creds_map['aws_secret_access_key'])
 
         if not conn:
-            raise Exception("Invalid region [%s]" % self.region)
+            raise Exception("Could not connect to region [%s]" % self.region)
 
-        logger.debug('Connected, boto version: %s' % conn.APIVersion)
         return conn
 
     def conn(self):
 
         if not self._connection:
-            self._connection=self.connect()
+            self._connection = self.connect()   
 
-        return self._connection
+        return self._connection 
 
+    def client(self):
+        resource = self.conn()
+        return resource.meta.client
 
     def refresh(self):
         ''' get nodes/reservations from cloud '''
@@ -83,11 +91,8 @@ class EC2Cloud(object):
 
     def _get_instances(self, iids=None):
         ret = []
-        reservations = self.conn().get_all_reservations(instance_ids=iids)
-        for r in reservations:
-            for i in r.instances:
-                ret.append(i)
-        return ret
+        instances = self.conn().instances.all()
+        return instances
 
     def create_absent_node(self, nodename, **kwargs):
         node = EC2Node(nodename=nodename, **kwargs)
@@ -103,22 +108,62 @@ class EC2Cloud(object):
         keypath = os.path.join(keydir, "%s.pem" % keyname)
         if os.path.exists(keypath):
             logger.info('Found key pair locally, not doing anything. key=[%s] keypath=[%s]' % (keyname, keypath))
-            return True, keyname, keypath 
+            return True, keyname, keypath
 
         # check is the keys exists in the cloud
-        keypairs = self.conn().get_all_key_pairs()
-        for keypair in keypairs:
-            if keypair.name == keyname:
-                return True, keyname, ""
+        found = True
+        try:
+            ret = self.client().describe_key_pairs(KeyNames=[keyname])
+        except ClientError as ex:
+            if (ex.response['Error']['Code'] == 'InvalidKeyPair.NotFound'):
+                found = False
+            else:
+                raise
+
+        if found:
+            return True, keyname, ""
 
         # create it
-        key = self.conn().create_key_pair(keyname)
-        if key:
-            key.save(keydir)
-        else:
-            raise Exception('Error creating key')
+        keypair = self.conn().create_key_pair(KeyName=keyname)
+        self.writekey(keypath, keypair.key_name, keypair.key_material, keypair.key_fingerprint)
 
         return False, keyname, keypath
+
+    def writekey(self, keypath, keyname, keymaterial, fingerprint):
+
+        # write creds
+        logger.info("Writing new keypair [%s] to [%s] with mode (0600)" % (keyname, keypath))
+
+        with open(keypath, 'wb') as fh:
+            fh.write(keymaterial)
+
+        os.chmod(keypath, stat.S_IRUSR | stat.S_IWUSR)
+
+    def get_dust_ami_for_region(self, region):
+        ''' latest public Amazon Linux AMI '''
+
+        cached = self.ami_ids.get(region)
+        if cached:
+            return cached, 'ec2-user'
+
+        ami_name = 'amzn-ami-hvm-2017.09.0.20170930-x86_64-gp2'
+ 
+        filters = [
+                        { 'Name': 'name' , 'Values' : [ami_name] } 
+                ]
+
+        try:
+            images = self.conn().images.filter(ExecutableUsers=['all'], Owners=['137112412989'], Filters=filters)
+        except boto.exception.ClientError, ex:
+            logger.error("Could not find ami %s in region %s" % (region, ami_name))
+
+        for image in images:
+            logger.info("Using default AMI: %s" % ami_name)
+            self.ami_ids[region] = image.id 
+            return image.id, 'ec2-user'
+
+        return None
+
 
 
 class EC2Node(object):
@@ -151,18 +196,20 @@ class EC2Node(object):
                                 'ip'       : 'ip_address'
                                }
 
-        self.extended_fields = [ 'dns_name', 'image', 'tags', 'key', 'launch_time', 'username', 'groups']
+        self.extended_fields = [ 'dns_name', 'image', 'tags', 'key', 'launch_time', 
+                                'username', 'groups', 'state']
 
-        self.all_fields = ['ami_launch_index', 'architecture', 'block_device_mapping', 'client_token',  
-                    'dns_name', 'ebs_optimized', 'group_name', 'groups', 'hypervisor', 'id', 'image_id', 'instance_profile', 
-                    'instance_type', 'interfaces', 'ip_address', 'kernel', 'key_name', 'launch_time', 
-                    'monitored', 'monitoring_state', 'persistent', 'placement', 'placement_group', 
-                     'placement_tenancy', 'platform', 'previous_state', 'previous_state_code', 'private_dns_name', 'private_ip_address', 
-                    'product_codes', 'public_dns_name', 'ramdisk', 'reason', 'reboot', 'region', 'requester_id', 
-                    'root_device_name', 'root_device_type', 'spot_instance_request_id', 'state', 'state_code', 'state_reason', 
-                    'subnet_id', 'tags', 'virtualization_type', 'vpc_id']
-
-        self.non_instance_fields = ['name', 'username', 'cluster', 'keyfile', 'key']
+        self.all_fields = ['ami_launch_index', 'architecture', 'block_device_mappings', 'classic_address',
+                     'client_token', 'console_output', 'ebs_optimized', 'elastic_gpu_associations', 
+                     'ena_support', 'hypervisor', 'iam_instance_profile', 'id', 'image', 'image_id',
+                      'instance_id', 'instance_lifecycle', 'instance_type', 'kernel_id', 'launch_time', 
+                      'monitoring', 'network_interfaces', 'placement', 'placement_group', 'platform', 
+                      'private_dns_name', 'private_ip_address', 'product_codes', 'public_dns_name', 'public_ip_address', 
+                      'ramdisk_id', 'root_device_name', 'security_groups', 'sriov_net_support', 'state', 'state_reason',
+                       'state_transition_reason', 'subnet', 'subnet_id', 'tags', 'virtualization_type', 'volumes', 
+                       'vpc', 'vpc_addresses', 'vpc_id']
+        
+        self.non_instance_fields = ['name', 'username', 'cluster', 'keyfile', 'key', 'tags', 'groups', 'state']
 
     def __repr__(self):
         data = self.disp_data()
@@ -231,6 +278,28 @@ class EC2Node(object):
     def key(self, value):
         self._key = value
 
+    @property
+    def tags(self):
+        if self._vm and self._vm.tags:
+            ret = {}
+            for tagitem in self._vm.tags:
+                ret[ tagitem.get('Key') ] = tagitem.get('Value')
+            return ret
+        else:
+            return {}
+
+    @property
+    def state(self):
+        if self._vm:
+            return self._vm.state.get('Name')
+        else:
+            return '-'
+
+    @property
+    def groups(self):
+        if self._vm:
+            return [ grp.get('GroupName') for grp in self._vm.security_groups ] 
+        return []
 
     def start(self):
 
@@ -239,16 +308,16 @@ class EC2Node(object):
 
         vm = self._vm
         if vm:
-            if vm.state == 'running' or vm.state == 'pending':
+            if self.state == 'running' or self.state == 'pending':
                 logger.info( "Nothing to do for node [%s]" % self._name )
                 return
 
-            if vm.state == 'stopped':
+            if self.state == 'stopped':
                 logger.info( 'restarting node %s : %s' % (self._name, self) )
-                self.cloud.conn().start_instances(instance_ids=[vm.id])
+                self.vm.start()
                 return
 
-        logger.info( 'launching new node name=[%s] image=[%s] instance=[%s]'
+        logger.info( 'creating instance name=[%s] image=[%s] instance=[%s]'
                         % (self._name, self._image, self._instance_type) )
 
         res = self.cloud.conn().run_instances(self._image, key_name=self._key, instance_type=self._instance_type)
@@ -257,34 +326,33 @@ class EC2Node(object):
 
         vm = self._vm
         if vm:
-            if vm.state == 'stopped':
+            if self.state == 'stopped':
                 return 
             else:
                 logger.info('stopping %s' % self._name)
-                self.cloud.conn().stop_instances(instance_ids = [vm.id])
+                vm.stop()
         else:
             logger.error('no vm that matches node defination for %s' %  self._name)
 
     def terminate(self):
 
         if self._vm:
-            tags = self._vm.tags
+            tags = self.tags
             newname = ''
-            if tags and tags.get('name'):
-                newname = tags['name'] + '_terminated'
-                self._vm.add_tag('name', newname)
+            if tags and tags.get('Name'):
+                newname = tags['Name'] + '_terminated'
+                self._vm.create_tags( Tags= [ { 'Key': 'Name', 'Value' : newname } ] )
 
             instance_ids = [self._vm.id]
 
             logger.info('terminating %s id=[%s]' % (self._name, self._vm.id))
 
-            self.cloud.conn().stop_instances( instance_ids = instance_ids )
-            self.cloud.conn().terminate_instances( instance_ids = instance_ids )
-
+            self._vm.stop()
+            self._vm.terminate()
 
     def disp_headers(self):
         headers = ["Name", "Type", "State", "ID",  "IP", "int_IP"]
-        fmt =     ["%-12s",  "%-12s",  "%-12s",  "%-10s", "%-15s", "%-15s"]
+        fmt =     ["%-12s",  "%-12s",  "%-12s",  "%-19s", "%-15s", "%-15s"]
         return headers, fmt
 
 
@@ -294,7 +362,7 @@ class EC2Node(object):
 
         if self._vm:
             vm = self._vm
-            vmdata = [vm.state, vm.id, vm.ip_address, vm.private_ip_address]
+            vmdata = [self.state, vm.id, vm.public_ip_address, vm.private_ip_address]
             vals += vmdata
         else:
             startColorRed = "\033[0;31;40m"
@@ -317,11 +385,7 @@ class EC2Node(object):
         if not self._vm:
             return ""
 
-        if prop_name == 'groups':
-            return ",".join(str(grp.name) for grp in self._vm.groups)
-        else:
-            return getattr(self._vm, prop_name)
-
+        return getattr(self._vm, prop_name)
 
     def extended_data(self):
         # updated here for showex command error
@@ -333,7 +397,7 @@ class EC2Node(object):
             if field == 'tags' and self._vm:
                 sep = " , "
                 val = sep.join( '%s%s%s=%s' % (colorama.Style.RESET_ALL, k, colorama.Style.DIM, v) \
-                                    for k,v in self._vm.tags.items())
+                                    for k,v in self.tags.items())
 
             if val:
                 ret[field] = val
@@ -344,16 +408,18 @@ class EC2Node(object):
     def all_data(self):
         # updated here for showex command error
         ret = {}
-    
+
         for field in self.all_fields:
+
+            if field.startswith("_"):
+                continue
+
             val = self.get(field)
 
-            if field == 'tags':
-                sep = " , "
-                val = sep.join( '%s%s%s=%s' % (colorama.Style.RESET_ALL, k, colorama.Style.DIM, v) \
-                                    for k,v in self._vm.tags.items())
             if val:
                 ret[field] = val
+
+        ret.update ( self.extended_data() )
 
         return ret
 
@@ -379,26 +445,27 @@ class EC2Config(object):
             sendsock.close()
             t2 = time.time() * 1000
         except socket.timeout:
-            return 999
+            return -1
 
         except Exception, ex:
             print endpoint, ex
-            return 9999
+            return -1
 
         return int(t2 - t1)
-
 
     @staticmethod
     def find_closest_region(logger):
 
         connect_times = []
 
-        regions = boto.ec2.regions()
+        client = boto3.client('ec2')
+        regions = client.describe_regions()
 
-        for regioninfo in regions:
-            ms = EC2Config.http_ping(regioninfo.endpoint)
-            logger.info("http ping time to %s (%s) : %s ms" % (regioninfo.name, regioninfo.endpoint, ms))
-            connect_times.append((regioninfo.name, ms))
+        for regioninfo in regions.get('Regions'):
+            ms = EC2Config.http_ping(regioninfo.get('Endpoint'))
+            sms = "[timeout/erorr]" if ms == -1 else str(ms)
+            logger.info("http ping time to %s (%s) : %s ms" % (regioninfo['Endpoint'], regioninfo['RegionName'], sms))
+            connect_times.append((regioninfo['RegionName'], ms))
 
         connect_times = sorted(connect_times, key=lambda x: x[1])
 
@@ -411,28 +478,36 @@ class EC2Config(object):
     def check_credentials(region, aws_access_key_id, aws_secret_access_key, logger):
 
         try:
-            conn = boto.ec2.connect_to_region( region, aws_access_key_id=aws_access_key_id,
+            client = boto3.client('ec2', region_name=region, aws_access_key_id=aws_access_key_id,
                                                 aws_secret_access_key=aws_secret_access_key)
 
-            if not conn:
+            if not client:
                 return None
             
-            conn.get_all_regions()
-        except boto.exception.EC2ResponseError:
+            client.describe_regions()
+        except Exception, e:
+            logger.exception(e)
             return None
 
-        return conn
+        return client
 
     @staticmethod
-    def configure(logger):
+    def setup_credentials(override_creds):
 
-        config_data = {}
-    
+        user_data = {}
+        credentials   = {}
+
         good_creds = False
 
         while not good_creds:
-            acc_key_id  = raw_input("Enter aws_access_key_id:").strip()
-            acc_key     = raw_input("Enter aws_secret_access_key:").strip()
+
+            if override_creds:
+                acc_key_id = override_creds.get('aws_access_key_id')
+                acc_key = override_creds.get('aws_secret_access_key')
+                override_creds = None   # for retry
+            else:
+                acc_key_id  = raw_input("Enter aws_access_key_id:").strip()
+                acc_key     = raw_input("Enter aws_secret_access_key:").strip()
 
             confirmed = False
             while not confirmed:
@@ -444,7 +519,7 @@ class EC2Config(object):
                     region = EC2Config.find_closest_region(logger)
                     confirm = raw_input("Accept %s?[y]" % region) or "y"
                     if confirm[0].lower() == "y":
-                        config_data['closest_region'] = region
+                        user_data['closest_region'] = region
                         break
 
             # test creds
@@ -458,10 +533,25 @@ class EC2Config(object):
                 logger.error("%sCould not connect to region [%s] with these credentials, please try again%s" % 
                                 (colorama.Fore.RED, region, colorama.Style.RESET_ALL))
 
-        config_data["aws_access_key_id"] = acc_key_id
-        config_data["aws_secret_access_key"] = acc_key
+        credentials["aws_access_key_id"] = acc_key_id
+        credentials["aws_secret_access_key"] = acc_key
 
-        config_data["region"] = region
+        user_data["region"] = region
+        user_data["closest_region"] = region
 
-        return config_data
+        return credentials, user_data
 
+    @staticmethod
+    def validate(credentials, user_data):
+
+        required = ["aws_access_key_id", "aws_secret_access_key"]
+        for s in required:
+            if s not in credentials.keys():
+                logger.error("Credentials data [%s] is missing [%s] key" % (str(credentials.keys()), s))
+                raise Exception("Bad config.")
+
+        required = ["region"]
+        for s in required:
+            if s not in user_data.keys():
+                logger.error("User data [%s] is missing [%s] key" % (str(user_data.keys()), s))
+                raise Exception("Bad config.")

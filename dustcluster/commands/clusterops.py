@@ -51,14 +51,14 @@ def list_clusters(args, cluster, logger):
 
 def get_closest_region(cluster, logger):
 
-    user_data = cluster.get_user_data()
-    region_data = user_data.get('closest_region')
-    if region_data and region_data.get('region'):
-        return region_data.get('region')
+    user_data = cluster.config.get_userdata()
+    region = user_data.get('closest_region')
+    if region:
+        return region
 
     region = EC2Config.find_closest_region(logger)
-    region_data = { 'region' : region }
-    cluster.update_user_data('closest_region', region_data)
+    user_data['closest_region'] = region
+    cluster.config.write_userdata()
 
     return region
 
@@ -246,7 +246,7 @@ def create_cluster(args, cluster, logger):
             if image_id:
                 instance.ImageId = image_id
             else: 
-                default_ami, default_login_user = ami_provider.get_ami_for_region('amazonlinux', target_region)
+                default_ami, default_login_user = cluster.cloud.get_dust_ami_for_region(target_region)
                 instance.ImageId = default_ami
                 node['image'] = default_ami
                 node['username'] = default_login_user

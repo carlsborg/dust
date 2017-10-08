@@ -36,8 +36,10 @@ def loglevel(cmdline, cluster, logger):
     elif level.lower() == 'debug':
         set_loglevel(logger, logging.DEBUG)
         logger.info('switched log level to DEBUG')
+    elif not level:
+        logger.info('log level is %s' % logging.getLevelName(logger.getEffectiveLevel()))        
     else:
-        logger.info('undefined log level %s' % level)
+        logger.info('undefined log level ' % level)
 
 def set_loglevel(logger, level):
 

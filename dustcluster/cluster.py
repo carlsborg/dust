@@ -26,6 +26,7 @@ from copy import deepcopy
 from dustcluster.lineterm import LineTerm
 from pkgutil import walk_packages
 from dustcluster import commands
+from dustcluster.config import DustConfig
 
 from dustcluster.util import setup_logger
 logger = setup_logger( __name__ )
@@ -57,19 +58,18 @@ class ClusterCommandEngine(object):
     This object is accessible from all commands. 
     '''
 
-    def __init__(self, config_data):
+    def __init__(self):
 
         self.cloud = None
         self.nodecache = dict() # invalidated on load template/start/stop/terminate/etc
         self.region = None
 
-        self.dust_config_data = config_data
+        self.config = DustConfig()
         self.user_data = None
         self.cur_cluster = ""
         self.provider_cache = {}
 
-        self.validate_config()
-        self.init_default_provider(config_data)
+        self.init_default_provider()
 
         self._commands = {}
         self.command_state = CommandState()
@@ -83,23 +83,6 @@ class ClusterCommandEngine(object):
 
         self.clusters = {}
         self.read_all_clusters()
-
-        self.write_user_data()
-
-
-    def validate_config(self):
-
-        required = ["aws_access_key_id", "aws_secret_access_key", "region"]
-        for s in required:
-            if s not in self.dust_config_data.keys():
-                logger.error("Config data [%s] is missing [%s] key" % (str(self.dust_config_data.keys()), s))
-                raise Exception("Bad config.")
-
-    def write_user_data(self):
-
-        closest_region = self.dust_config_data.get("closest_region")
-        if closest_region:
-            self.update_user_data("closest_region", { "region" : closest_region } )
 
     def invalidate_cache(self):
 
@@ -207,12 +190,9 @@ class ClusterCommandEngine(object):
 
         logger.info("Deleted cluster config: %s" % template_file)
 
+    def init_default_provider(self):
 
-    def init_default_provider(self, dust_config_data):
-
-        default_region = dust_config_data.get("region")
-        if not default_region:
-            raise Exception("Dust cluster config file or aws config file does not have a default region.")
+        default_region = self.config.get_userdata().get("region")
 
         cloud_data = { 'provider': 'ec2', 'region' :  default_region}
 
@@ -299,7 +279,7 @@ class ClusterCommandEngine(object):
         cloud_provider = self.provider_cache.get(key) 
 
         if not cloud_provider:
-            cloud_provider = EC2Cloud(creds_map=self.dust_config_data, region=cloudregion)
+            cloud_provider = EC2Cloud(creds_map=self.config.get_credentials(), region=cloudregion)
             cloud_provider.connect()
             self.provider_cache[key] = cloud_provider
 
@@ -349,7 +329,7 @@ class ClusterCommandEngine(object):
             if not region:
                 region = self.cloud.region
 
-            user_data = self.get_user_data()
+            user_data = self.config.get_userdata()
             default_keynames = user_data.get('default-keynames') or {}
 
             namekey = 'ec2-default-keyname-' + region 
@@ -364,7 +344,9 @@ class ClusterCommandEngine(object):
                 default_keynames[namekey] = default_keyname
 
                 exists, keyname, keypath = self.cloud.create_keypair(default_keyname, self.default_keys_dir)
-                self.update_user_data('default-keynames', default_keynames)
+
+                self.config.get_userdata().update( { 'default-keynames' :  default_keynames } )
+                self.config.write_user_data()
 
                 region_key = "%s#%s" % (region, default_keyname)
 
@@ -377,12 +359,14 @@ class ClusterCommandEngine(object):
                 if keypath:
                     keymap = user_data.get('ec2-key-mapping') or {}
                     keymap[region_key] = keypath
-                    self.update_user_data('ec2-key-mapping', keymap)
-                    logger.info("Updating new key mappings to userdata [%s]" % self.user_data_file)
+                    userdata = self.config.get_userdata()
+                    userdata.update( { 'ec2-key-mapping':  keymap } )
+                    logger.info("Updating new key mappings to userdata [%s]" % self.config.userdata_file)
+                    self.config.write_user_data()
 
                 return default_keyname, keypath
 
-            keymap = self.get_user_data().get('ec2-key-mapping') or {}
+            keymap = self.config.get_userdata().get('ec2-key-mapping') or {}
             region_key = "%s#%s" % (region, default_keyname)
             keyfile = keymap.get(region_key)
             if not keyfile:
@@ -394,34 +378,6 @@ class ClusterCommandEngine(object):
         except Exception, ex:
             logger.exception(ex)
             logger.error('Error getting default keys: %s' % ex)
-
-    def get_user_data(self):
-
-        if not self.user_data:
-
-            if os.path.exists(self.user_data_file):
-                with open(self.user_data_file, 'r') as fh:
-                    self.user_data = yaml.load(fh) or {}
-            else:
-                self.user_data = {}
-
-        return self.user_data
-
-
-    def update_user_data(self, section, data):
-
-        user_data = self.get_user_data()
-
-        user_data[section] = data
-        str_yaml = yaml.dump(user_data, default_flow_style=False)
-
-        if not os.path.exists(self.dust_dir):
-            os.makedirs(self.dust_dir)
-
-        with open(self.user_data_file, 'w') as yaml_file:
-            yaml_file.write(str_yaml)
-
-        self.user_data = user_data
 
 
     def show(self, nodes, extended=False):
@@ -480,7 +436,7 @@ class ClusterCommandEngine(object):
                     ext_data = node.all_data().items()
 
                 if ext_data:
-                    for k,v in ext_data:
+                    for (k,v) in sorted(ext_data, key=lambda x:x[0]):
                         print colorama.Style.RESET_ALL, colorama.Style.DIM, header_fmt[0] % "", k, ":", v
                     print colorama.Style.RESET_ALL
 
@@ -783,4 +739,3 @@ class ClusterCommandEngine(object):
 
     def logout(self):
         self.lineterm.shutdown()
-

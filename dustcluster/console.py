@@ -19,7 +19,6 @@ import socket
 import os
 import readline
 import logging
-import ConfigParser
 import stat
 import colorama
 
@@ -31,6 +30,8 @@ import paramiko
 from dustcluster import commands, lineterm
 from dustcluster import __version__
 from dustcluster.cluster import ClusterCommandEngine
+from dustcluster.config import DustConfig
+
 import atexit
 
 from dustcluster import util
@@ -40,13 +41,6 @@ class Console(Cmd):
     ''' command line tool to control a cloud cluster '''
 
     dustintro  = "Dust cluster shell, version %s. Type ? for help." % __version__
-    default_keypath = os.path.join(os.getcwd(), 'keys')
-
-    user_dir         = os.path.expanduser('~')
-    dust_dir         = os.path.join(user_dir, '.dustcluster')
-    history_file     = os.path.join(user_dir, '.dustcluster/cmd_history')
-    dust_config_file = os.path.join(user_dir, '.dustcluster/config')
-    aws_config_file  = os.path.join(user_dir, '.aws/config')
 
     def __init__(self):
 
@@ -54,29 +48,17 @@ class Console(Cmd):
 
         logger.setLevel(logging.INFO)
 
-        # read config/credentials 
-        config_data = {}
+        # read/create config
         try:
-            if os.path.exists(self.dust_config_file):
-                logger.debug("Reading dust config from [%s]" % self.dust_config_file)
-                config_data = self.read_config(self.dust_config_file)
-
-            if not config_data.get('aws_access_key_id') and os.path.exists(self.aws_config_file):
-                logger.debug("Reading aws credentials from [%s]" % self.aws_config_file)
-                config_data.update(self.read_config(self.aws_config_file))
-
-            if not config_data.get('aws_access_key_id'):
-                logger.info("%sWelcome to dustcluster, creating config file:%s"  % (colorama.Fore.GREEN, colorama.Style.RESET_ALL))
-                config_data = self.ask_and_write_credentials(self.dust_config_file)
-
+            self.config = DustConfig()
         except Exception, e:
             logger.error("Error getting config/credentials. Cannot continue.")
             raise
 
         # load history
         try:
-            if os.path.exists(self.history_file):
-                readline.read_history_file(self.history_file)
+            if os.path.exists(self.config.get_history_file_path()):
+                readline.read_history_file(self.config.get_history_file_path())
             else:
                 if not os.path.exists(self.dust_dir):
                     os.makedirs(self.dust_dir)
@@ -84,19 +66,19 @@ class Console(Cmd):
         except IOError:
             logger.warning("Error reading history file. No command history available.")
 
-        atexit.register(readline.write_history_file, self.history_file)
+        atexit.register(self.on_exit, None)
 
         Cmd.__init__(self)
 
         self.commands = {}  # { cmd : (helpstr, module) }
         # startup
-        self.cluster = ClusterCommandEngine(config_data)
+        self.cluster = ClusterCommandEngine()
         self.cluster.load_commands()
  
         self.exit_flag = False
         self.cluster.lineterm.set_refresh_callback(self.redisplay)
 
-        self.cluster.handle_command('loglevel',  config_data.get('loglevel') or 'info')
+        self.cluster.handle_command('loglevel',  self.config.get_userdata().get('loglevel') or 'info')
         logger.info(self.dustintro)
         if self.cluster.clusters:
             print "\nAvailable clusters:"
@@ -109,35 +91,6 @@ class Console(Cmd):
         else:
             return "[dust]$ "
 
-    def read_config(self, config_file):
-
-        parser = ConfigParser.ConfigParser()
-        parser.read(config_file)
-
-        config_data = parser.defaults()
-        
-        if not config_data:
-            config_data = dict(parser.items("default"))
-
-        return config_data
-
-    def ask_and_write_credentials(self, config_file):
-
-        config_data = EC2Config.configure(logger)
-
-        parser = ConfigParser.ConfigParser(config_data)
-
-        logger.info("Writing credentials to [%s] with mode (0600)" % config_file)
-
-        if not os.path.exists(self.dust_dir):
-            os.makedirs(self.dust_dir)
-
-        with open(config_file, 'wb') as fh:
-            parser.write(fh)
-
-        os.chmod(config_file, stat.S_IRUSR | stat.S_IWUSR)
-
-        return parser.defaults()
 
     def redisplay(self):
         ''' refresh the prompt '''
@@ -145,6 +98,17 @@ class Console(Cmd):
         sys.stdout.write(readline.get_line_buffer())
         sys.stdout.flush()
 
+    def on_exit(self, _ ):
+        readline.write_history_file(self.config.get_history_file_path())
+
+        confregion = self.config.user_data['region']
+        cloud_region = ""
+        if self.cluster and self.cluster.cloud:
+            cloud_region = self.cluster.cloud.region
+
+        if confregion != cloud_region:
+            self.config.user_data['region'] = cloud_region 
+            self.config.write_user_data()
 
     def emptyline(self):
         pass
