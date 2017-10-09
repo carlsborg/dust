@@ -7,7 +7,6 @@ import copy
 import os
 import colorama
 from dustcluster.EC2 import EC2Config
-from dustcluster.ec2amiprovider import EC2AMIProvider
 
 commands = ['cluster']
 
