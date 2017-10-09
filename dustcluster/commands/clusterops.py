@@ -157,7 +157,6 @@ def create_cluster(args, cluster, logger):
         cloud_spec = obj_yaml.get('cloud')
         target_region = cloud_spec.get('region')
 
-        ami_provider = EC2AMIProvider()
         if target_region == 'closest' or not target_region:
             target_region = get_closest_region(cluster, logger)
             cloud_spec['region'] = target_region
