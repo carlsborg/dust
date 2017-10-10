@@ -184,6 +184,9 @@ class EC2Node(object):
 
         self._hydrated = False
 
+        self.login_rule = ""
+        self.index = None
+
         # for starting new nodes
         self._clustername = None
 
@@ -208,8 +211,8 @@ class EC2Node(object):
                       'ramdisk_id', 'root_device_name', 'security_groups', 'sriov_net_support', 'state', 'state_reason',
                        'state_transition_reason', 'subnet', 'subnet_id', 'tags', 'virtualization_type', 'volumes', 
                        'vpc', 'vpc_addresses', 'vpc_id']
-        
-        self.non_instance_fields = ['name', 'username', 'cluster', 'keyfile', 'key', 'tags', 'groups', 'state']
+
+        self.non_instance_fields = ['name', 'username', 'cluster', 'keyfile', 'key', 'tags', 'groups', 'state', 'index']
 
     def __repr__(self):
         data = self.disp_data()
@@ -237,11 +240,7 @@ class EC2Node(object):
 
     @property
     def name(self):
-        return self._name
-
-    @name.setter
-    def name(self, value):
-        self._name = value
+        return self.tags.get('Name') or ""
 
     @property
     def cluster(self):
@@ -351,14 +350,14 @@ class EC2Node(object):
             self._vm.terminate()
 
     def disp_headers(self):
-        headers = ["Name", "Type", "State", "ID",  "IP", "int_IP"]
-        fmt =     ["%-12s",  "%-12s",  "%-12s",  "%-19s", "%-15s", "%-15s"]
+        headers = ["@",    "Name", "Type", "State", "ID",  "IP", "int_IP"]
+        fmt =     ["%-3s"  "%-12s",  "%-12s",  "%-12s",  "%-19s", "%-15s", "%-15s"]
         return headers, fmt
 
 
     def disp_data(self):
 
-        vals = [self._name, self._instance_type]
+        vals = [self.index, self.name, self._instance_type]
 
         if self._vm:
             vm = self._vm

@@ -244,10 +244,10 @@ class SSHTerm(object):
         hostname = self.node.get('public_dns_name')
         if not hostname:
             hostname = self.node.get('ip')
-        username = self.node.username
+        username = self.node.login_rule.get('login-user')
 
         if not hostname or not username:
-            raise Exception("No hostname or username available for node %s" % node.nodename)
+            raise Exception("No hostname or username available for node %s" % node.name or node.index)
 
         logger.debug('hostname=[%s], username=[%s], key=[%s]' % (hostname, username, self.keyfile))
         if not self.is_connected():

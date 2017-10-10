@@ -37,6 +37,10 @@ import atexit
 from dustcluster import util
 logger = util.setup_logger( __name__ )
 
+if os.environ.get('COLORTERM'):
+    colorama.Fore.CYAN  = '\x1b[38;5;75m'
+    colorama.Fore.GREEN = '\x1b[38;5;76m'
+
 class Console(Cmd):
     ''' command line tool to control a cloud cluster '''
 
@@ -80,10 +84,7 @@ class Console(Cmd):
 
         self.cluster.handle_command('loglevel',  self.config.get_userdata().get('loglevel') or 'info')
         logger.info(self.dustintro)
-        if self.cluster.clusters:
-            print "\nAvailable clusters:"
-            self.cluster.show_clusters()
-
+    
     @property
     def prompt(self):
         if self.cluster.cloud and self.cluster.cloud.region:
@@ -124,7 +125,7 @@ class Console(Cmd):
         if args:
             if args in commands:
                 docstr, _ = commands.get(args)
-                print docstr
+                print colorama.Fore.GREEN, docstr, colorama.Style.RESET_ALL
                 return
             return Cmd.do_help(self, args)
 
@@ -171,7 +172,7 @@ class Console(Cmd):
                 cmd, doc = helpstr[:pos].strip(), helpstr[pos+1:].strip()
             else:
                 doc = ""
-            print "%-40s%s" % (cmd.strip(), doc.strip())
+            print "%-40s%s%s%s" % (cmd.strip(), colorama.Fore.GREEN, doc.strip(), colorama.Style.RESET_ALL)
         else:
             print "%-40s" % cmd.strip()
 

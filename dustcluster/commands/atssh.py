@@ -54,6 +54,16 @@ def atssh(cmdline, cluster, logger):
         if not target_nodes:
             return
 
+        # check that logins are setup
+        have_logins = True
+        for node in target_nodes:
+            if not node.login_rule:
+                have_logins = False
+
+        if not have_logins:
+            show_help(cluster, logger)
+            return
+
         sshcmd = cmdline[len(target):].strip()
 
         if sshcmd:
@@ -84,17 +94,18 @@ def _get_key_file(node, cluster, logger):
     if node has a keyfile property return it, else find a mapped key 
     '''
 
-    if node.keyfile: 
-        return node.keyfile
+    rule_key = node.login_rule.get('keyfile')
+    if rule_key:
+        return rule_key
 
     if not node.key:
-        logger.error("No keyfile and no key configured for this node.")
+        logger.error("No login rule keyfile and no instance key configured for this node.")
         return ""
 
     keyfile = _get_key_location(node.key, cluster, logger)
     if not keyfile:
         str_err = "No keyfile mapping found for key [%s]. This mapping should be in ~./dustcluster/userdata." % node.key
-        str_err += "Or as 'keyfile' in the cluster config"
+        str_err += "Or as 'keyfile' in the login rules"
         logger.error("%s%s%s" %(colorama.Fore.RED, str_err, colorama.Style.RESET_ALL))
         return ""
 
@@ -132,4 +143,10 @@ def _get_key_location(key, cluster, logger):
         logger.info("Updating new key mappings to userdata [%s]" % cluster.user_data_file)
 
     return ret[key]
+
+def show_help(cluster, logger):
+    ret = raw_input("Logins not setup for some or all selected nodes. Show help?[y] :")
+    if not ret or ret.strip().lower() == 'y':
+        docstr, _ = cluster.get_commands().get('assign')
+        print colorama.Fore.GREEN, docstr, colorama.Style.RESET_ALL
 

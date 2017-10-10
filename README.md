@@ -2,7 +2,7 @@
 dust
 ====
 
-DustCluster is an ssh cluster shell for EC2
+DustCluster v0.2.0 is an ssh cluster shell for EC2
 
 Status:
 * Tested/known to work on Linux and OSX only (Debian, Ubuntu, CentOS, OSX Yosemite)
@@ -13,105 +13,158 @@ See setup.py for dependencies.
 
 [![Build Status](https://travis-ci.org/carlsborg/dust.svg?branch=master)](https://travis-ci.org/carlsborg/dust) [![PyPI version](https://badge.fury.io/py/dustcluster.svg)](https://badge.fury.io/py/dustcluster)
 
-Table of Contents
-=================
 
-  * [Rationale](#rationale)
-  * [Getting started](#getting-started)
-  * [Target a set of nodes](#target-a-set-of-nodes)
-  * [Use a working set](#use-a-working-set)
-  * [Cluster ssh to a set of nodes](#cluster-ssh-to-a-set-of-nodes)
-    * [These are demultiplexed fully interactive ssh shells !](#these-are-demultiplexed-fully-interactive-ssh-shells-)
-    * [Run vim or top on a single node, with the same ssh session.](#run-vim-or-top-on-a-single-node-with-the-same-ssh-session)
-  * [Add stateful drop-in python commands](#add-stateful-drop-in-python-commands)
+### Overview
 
+DustCluster lets you perform cluster-wide stateful ssh and node operations on AWS ec2 instances; and also bring up some pre-configured clusters on EC2.
 
+This can be useful for developing, prototyping, and one-off configurations of (usually ephemeral) EC2 clusters. Such as when developing custom data engineering stacks and distributed systems.
 
-### Rationale
+### Quick Start
 
-DustCluster lets you perform cluster-wide parallel ssh and node operations on AWS ec2 instances, using
-wildcard and filter expressions to target nodes.
+> sudo pip install dustcluster
 
-It also lets you easily bring up a new cluster from a minimal spec, with security groups, placement groups,
-and spot pricing configured, on top of which you can use the cluster ssh feature to configure them.
+At a bash prompt, drop into a dust shell:
 
-This can be useful for developing, prototyping, and one-off configurations of (usually ephemeral) EC2 clusters.
-Such as when developing custom data engineering stacks.
+> bash$ dust
 
-Example:
-Given a cluster with nodes named master, worker1 .. 5, you can do:
+> dust:2016-04-05 23:41:47,623 | Dust cluster shell, version 0.2.0. Type ? for help.
+
+**Example AWS operations:**
+
+Given 3 running instances tagged with Name = master, worker1, worker2, and 1 un-named node:
 
 ```
-dust$ @ pwd  	# run the pwd command over ssh on all running nodes
+# list your instances
 
-dust$ @worker* cd /opt/data    # issue stateful shell commands to nodes named worker*
+[eu-west-1]$ show
+dust:12:15:15 | Nodes in region: eu-west-1
+
+    @  Name         Type         State        ID                  IP              int_IP         
+
+--vpc-dcb059b9:
+cluster [mystack1]
+       1  worker0      t2.nano      running      i-00adf7a4e1e8eb976 52.51.198.208   172.31.19.41   
+       2  worker1      t2.nano      running      i-03b6a32edf6113c55 34.240.112.38   172.31.23.106  
+       3  master       t2.nano      running      i-0011f74f23a745e7f 52.208.15.246   172.31.22.129  
+cluster [mystack2]
+       4               t2.nano      running      i-06f17739c9b4d2112 34.241.19.12    172.31.21.91   
+```
+
+```
+dust$ show -v worker[0-3] # show details on workers0,1,2,3     
+dust$ stop 1,2            # stop nodes 1,2
+dust$ stop worker*        # stop nodes worker0, worker1
+
+dust$ show state=running            # select nodes by attributes
+dust$ show -vv                      # list all filterable attributes
+dust$ show cluster=mysstack1        # select nodes by cluster
+dust$ show launch_time=2016-04-08*  # select nodes by attributes + wildcards
+
+```
+
+**Example ssh operations:**
+
+@[filter-expression] commmand  # send ssh command to all nodes filtered by expression
+
+```
+dust$ @ free -m  	      # run the free -m command over ssh on all running nodes
+
+      [worker0]              total       used       free     shared    buffers     cached
+      [worker0] Mem:           489        147        342          0          8         90
+      [worker0] -/+ buffers/cache:         48        440
+      [worker0] Swap:            0          0          0
+      [worker0] 
+
+
+      [worker1]              total       used       free     shared    buffers     cached
+      [worker1] Mem:           489        240        249          0         35        145
+      [worker1] -/+ buffers/cache:         59        429
+      [worker1] Swap:            0          0          0
+      [worker1] 
+
+      [master]              total       used       free     shared    buffers     cached
+      [master] Mem:           489        238        251          0         33        144
+      [master] -/+ buffers/cache:         60        429
+      [master] Swap:            0          0          0
+      [master]
+
+dust$ @worker* service restart nginx
 dust$ put data.dat worker* /opt/data
-dust$ @w* ls
 
-dust$ @state=running cd /etc        # select nodes by property for ssh commands
-dust$ show -v key=MyKey             # select nodes by property for show details
-dust$ show launch_time=2016-04-08*  # select nodes by property + wildcards for show 
-
-dust$ stop worker*          # stop all nodes with a local name worker*
-dust$ terminate worker[4-5] # terminate nodes named worker4, worker5
+dust$ @1,2 cd /tmp      # stateful ssh commands
+dust$ @1,2 ls           # show /tmp
 ```
 
 There is a simple plugin model for adding stateful commands.
 All commands you see in dust cluster are implemented as plugins.
 
 
-### Getting started
+#### Configure ssh logins
 
-sudo pip install dustcluster
+Before using ssh you need to configure logins. Use filter expressions to select nodes with the same login user and key:
 
-At a bash prompt, drop into a dust shell:
+i) by using the assign command
 
-> bash$ dust
+    This command writes login rules to ~/.dustcluster/login_rules.yaml.
 
-> dust:2016-04-05 23:41:47,623 | Dust cluster shell, version 0.01. Type ? for help.
+    Example:
 
-You can then either:
+    $assign
+    selector: tags=key:value 
+    login-user: ec2-user
+    keyfile : /path/to/kyfile
+    member-of: webapp
 
-1) [Assign existing instances to clusters](docs/assign_to.md)
+    1] selector help:
+    selector is a dustcluster filter expression.`
 
-and/or
+    selector: *                    # selects all nodes
+    selector: id=0-asd1212         # selects a single node
+    selector: subnet=s-012sccas    # selects all nodes in a subnet
 
-2) [Bring up a new cluster from a minimal spec](docs/create_cluster.md) with a single command. 
-(Also see [this blog post](https://zvzzt.wordpress.com/2016/04/11/using-dustcluster-to-bring-up-high-performance-cluster-infrastructure-on-aws-ec2/) on high performance cluster infrastructure quick start.)
+    2] member-of help:
+    member-of adds nodes to a cluster, these nodes are grouped together in "show", 
+    and can be made into a working set with the "use" command
 
-Both ways, cluster configs are saved to ~/.dustcluster/clusters. and you will henceforth see clusters with named nodes. e.g.
+    3] login rules precedence:
 
+    login rules are applied in order that they appear in the file. 
+    So given a login_rules.yaml containing:
 
-> dust$ show
+    - selector: tags=env:prod   
+        ...
+    - selector: tags=env:dev
+        ...
+    - selector: *
+        ...
 
-```
-dust:2016-04-01 23:21:01,749 | Nodes in region: us-east-1
+    a command like "@1 service restart xyz" will search for a login rule by matching prod, dev, 
+    and then default (*) in that order'''
 
-    Name         Instance     State        ID         ext_IP          int_IP         
+ii) by manually editing the login rules file.
+      See a sample login rules file here.
 
+### More on Filter expressions 
 
-slurm1
-      master       t2.small     running      i-b4b1b02e 52.205.250.99   172.31.60.117  
-      worker1      t2.nano      running      i-92aeaf08 54.174.251.139  172.31.58.157  
-      worker2      t2.nano      running      i-b3b1b029 52.87.183.163   172.31.57.33   
+Most commands take a target. e.g. show -v [target]
 
-webtest
-      web1        t2.micro     running      i-a65f5f3c 52.91.213.83    172.31.56.107
-      web2        t2.micro     running      i-a55f5f3f 54.173.124.145  172.31.56.108
-```
+Here, [target] is a comma separated list of filter expressions.
 
-This shows two clusters called slurm1 and webtest.
+Filter expression can be:
 
-Use show -v and show -vv to see *some* node details and *all* node details respectively.
+**A node index**
 
-### Target a set of nodes
+> dust$ show -v 1,2,3
 
-Most commands take a [target]. e.g. show -v [target]
+> dust$ @1,2,3 service restart nginx
+
+> dust$ @[1-5] cat /etc/resolv.conf
+
 
 **By node name**
 
-Once you have assigned nodes to a cluster, nodes now have friendly names and you can use
-nodename wildcards as a target for node operations or ssh operations.
+Name comes from Instance tage with Key=Name
 
 > dust$ stop worker\*
 
@@ -119,10 +172,9 @@ nodename wildcards as a target for node operations or ssh operations.
 
 > dust$ terminate worker[0-2]
 
-> dust$ stop                    # no target or * means all nodes
+> dust$ @worker\* vmstat
 
-
-**By filter expression**
+**By EC2 attribute or tags**
 
 > dust$ show state=stopped
 
@@ -136,17 +188,24 @@ nodename wildcards as a target for node operations or ssh operations.
 
 > dust$ show -v launch_time=2016-04-03*
 
+> dust$ show -v launch_time=2016-04-03*
 
 type show -vv [target] to see all the available properties you can filter on.
-
+All filter expressions work for targeting ssh as well. e.g.@state=running free -m 
 
 **By cluster name**
 
-> dust$ show -v cluster=sample1
+> dust$ show -v cluster=mystack1
 
 > dust$ stop cluster=slurm1
 
+### Switching regions
 
+> dust$ use us-east-1
+
+> dust$ use eu-west-1
+
+etc
 
 ### Use a working set
 
@@ -179,18 +238,12 @@ will apply to only these nodes:
 
 > dust$ @ sudo tail /var/log/audit  # invoke sudo tail on all nodes
 
-
 **Revert to everything in the current region**
 
 > dust$ use *
 
-**Switch to everything in a new region**
 
-> dust$ use us-west-1
-
-
-
-### Cluster ssh to a set of nodes
+### More on cluster ssh
 
 Invoke commands over parallel bash shells with the "at target" @[target] operator.
 No target means all nodes in the working set.

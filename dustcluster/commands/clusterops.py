@@ -348,7 +348,7 @@ def delete_cluster(args, cluster, logger):
 
         # delete the stack
         conn.delete_stack(cluster_name)
-        cluster.delete_cluster_config(cluster_name, region)
+        cluster.config.delete_cluster_config(cluster_name, region)
         cluster.read_all_clusters()
 
         cluster.invalidate_cache()
@@ -397,7 +397,7 @@ def save_cluster(cluster, obj_yaml, logger):
         node['selector'] = 'tags=Name:%s'  % node.get('nodename')
 
     str_yaml = yaml.dump(obj_yaml, default_flow_style=False)
-    ret = cluster.save_cluster_config(name, str_yaml)
+    ret = cluster.config.save_cluster_config(name, str_yaml)
 
     if ret:
         logger.info("Wrote cluster to %s" % ret)

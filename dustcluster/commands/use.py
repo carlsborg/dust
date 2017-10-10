@@ -54,20 +54,47 @@ def use(cmdline, cluster, logger):
 
 def assign(cmdline, cluster, logger):
     '''
-    assign filter_exp - assign the nodes from a filter expression to a new cluster
+    assign - specify login rules and cluster membership for nodes
 
     Notes:
-    Applies the filter to nodes in the current region, asks for login details, 
-    and then save this in a cluster config file for future use.
+    This command writes login rules to ~/.dustcluster/login_rules.yaml.
+    You can manually edit this file and setup login rules there.
 
-    If any of the filtered nodes are already assigned to a cluster an error 
-    is raised. Use the tag command and then filter on that tag.
+    Example:
 
-    Examples:
-    assign tags="aws:cloudformation:stack-name":ClusterA
-    assign tags="*cloudformation*":ClusterA
-    assign key=prodkey
-    '''
+    $assign
+    selector: tags=key:value 
+    login-user: ec2-user
+    keyfile : /path/to/kyfile
+    member-of: webapp
+
+    1] selector help:
+    selector is a dustcluster filter expression.`
+
+    selector: *                    # selects all nodes
+    selector: id=0-asd1212         # selects a single node
+    selector: subnet=s-012sccas    # selects all nodes in a subnet
+
+    see show -vv for all posible attributes you can create filter expressions on
+
+    2] member-of help:
+    member-of adds nodes to a cluster, these nodes are grouped together in "show", 
+    and can be made into a working set with the "use" command
+
+    3] login rules precedence:
+
+    login rules are applied in order that they appear in the file. 
+    So given a login_rules.yaml containing:
+
+    - selector: tags=env:prod   
+        ...
+    - selector: tags=env:dev
+        ...
+    - selector: *
+        ...
+
+    a command like "@1 service restart xyz" will search for a login rule by matching prod, dev, 
+    and then default (*) in that order'''
 
     args = cmdline.split()
 

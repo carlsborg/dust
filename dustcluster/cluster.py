@@ -65,7 +65,7 @@ class ClusterCommandEngine(object):
         self.region = None
 
         self.config = DustConfig()
-        self.user_data = None
+
         self.cur_cluster = ""
         self.provider_cache = {}
 
@@ -74,15 +74,6 @@ class ClusterCommandEngine(object):
         self._commands = {}
         self.command_state = CommandState()
         self.lineterm = LineTerm()
-
-        self.user_dir = os.path.expanduser('~')
-        self.dust_dir = os.path.join(self.user_dir, '.dustcluster')
-        self.clusters_dir = os.path.join(self.dust_dir, 'clusters')
-        self.user_data_file = os.path.join(self.dust_dir, 'user_data')
-        self.default_keys_dir = os.path.join(self.dust_dir, 'keys')
-
-        self.clusters = {}
-        self.read_all_clusters()
 
     def invalidate_cache(self):
 
@@ -139,56 +130,6 @@ class ClusterCommandEngine(object):
             return True
 
         return False
-
-    def read_all_clusters(self):
-        wildcardpath = os.path.join(self.clusters_dir, "*.yaml")
-        cluster_files = glob.glob(wildcardpath)
-        logger.debug("found [%d] clusters in %s" % (len(cluster_files), wildcardpath))
-        clusters = {}
-        for cluster_file in cluster_files:
-            
-            if os.path.isfile(cluster_file):
-                with open(cluster_file, "r") as fh:
-                    cluster = yaml.load(fh.read())
-                    cluster_props = cluster.get('cluster')
-                    cluster_name = cluster_props.get('name')
-                    clusters[cluster_name] = cluster
-
-        self.clusters = clusters
-
-
-    def save_cluster_config(self, name, str_yaml):
-        ''' return path if saved ''' 
-
-        template_file = "%s.yaml" % name
-        template_file = os.path.join(self.clusters_dir, template_file)
-
-        if os.path.exists(template_file):
-            yesno = raw_input("%s exists. Overwrite?[y]:" % template_file) or "yes"
-            if not yesno.lower().startswith("y"):
-                return None
-
-        if not os.path.exists(self.clusters_dir):
-            os.makedirs(self.clusters_dir)
-
-        with open(template_file, 'w') as yaml_file:
-            yaml_file.write(str_yaml)
-
-        self.read_all_clusters()
-
-        return template_file
-
-    def delete_cluster_config(self, name, region):
-        template_file = "%s.yaml" % name
-        template_file = os.path.join(self.clusters_dir, template_file)
-        os.remove(template_file)
-
-        template_file = "%s.%s.cfn" % (region,name)
-        template_file = os.path.join(self.clusters_dir, template_file)
-        if os.path.exists(template_file):
-            os.remove(template_file)
-
-        logger.info("Deleted cluster config: %s" % template_file)
 
     def init_default_provider(self):
 
@@ -290,7 +231,7 @@ class ClusterCommandEngine(object):
 
         clusters = {}
 
-        for cluster_name, obj_yaml in self.clusters.iteritems():
+        for cluster_name, obj_yaml in self.config.get_clusters().iteritems():
 
             region = obj_yaml.get('cloud').get('region')
 
@@ -343,7 +284,7 @@ class ClusterCommandEngine(object):
                 default_keyname = default_keyname.replace("-", "")
                 default_keynames[namekey] = default_keyname
 
-                exists, keyname, keypath = self.cloud.create_keypair(default_keyname, self.default_keys_dir)
+                exists, keyname, keypath = self.cloud.create_keypair(default_keyname, self.config.get_default_keys_dir())
 
                 self.config.get_userdata().update( { 'default-keynames' :  default_keynames } )
                 self.config.write_user_data()
@@ -404,7 +345,7 @@ class ClusterCommandEngine(object):
             prev_cluster_name = "_"
             prev_vpc = "_"
             for node in nodes:
-
+                
                 node_vpc = node.get('vpc')
                 if node_vpc and node_vpc != prev_vpc:
                     print ""
@@ -413,22 +354,17 @@ class ClusterCommandEngine(object):
 
                 if node.cluster != prev_cluster_name:
                     if node.cluster:
-                        cluster_config = self.clusters[node.cluster]
-                        cluster_props = cluster_config.get('cluster')
-                        name = cluster_props.get('name')
-                        cluster_filter = cluster_props.get('filter')
-                        if extended:
-                            print( "%sCluster [%s] (%s)" % (colorama.Style.RESET_ALL, name, cluster_filter))
+                        if True:
+                            print( "%scluster [%s]" % (colorama.Style.RESET_ALL, node.cluster))
                         else:
-                            print( "%s%s" % (colorama.Style.RESET_ALL, name))
-                        prev_cluster_name = name or cluster_filter
+                            print( "%s%s" % (colorama.Style.RESET_ALL, node.cluster))
+                        prev_cluster_name = node.cluster or cluster_filter
                     else:
                         print colorama.Style.RESET_ALL
-                        print( "Unassigned:" )
-                        name = "Unassigned"
+                        print( "unassigned:" )
                         prev_cluster_name = None
 
-                print colorama.Fore.CYAN, "    ", " ".join(header_fmt) % tuple(node.disp_data())
+                print colorama.Style.NORMAL, colorama.Fore.CYAN, "    ", " ".join(header_fmt) % tuple(node.disp_data())
                 ext_data = []
                 if extended == 1:
                     ext_data = node.extended_data().items()
@@ -437,7 +373,7 @@ class ClusterCommandEngine(object):
 
                 if ext_data:
                     for (k,v) in sorted(ext_data, key=lambda x:x[0]):
-                        print colorama.Style.RESET_ALL, colorama.Style.DIM, header_fmt[0] % "", k, ":", v
+                        print colorama.Style.RESET_ALL, colorama.Style.DIM, header_fmt[1] % "", k, ":", v
                     print colorama.Style.RESET_ALL
 
         finally:
@@ -511,45 +447,18 @@ class ClusterCommandEngine(object):
 
         return filtered
 
-
-    def _find_matching_node(self, node_props, cluster_nodes):
+    def _find_matching_nodes(self, selector, cluster_nodes):
         ''' using node_props.selector, find the matching node in cluster_nodes ''' 
 
-        # filter by node filter
-        filter_value = node_props.get('selector')
-        nodename = node_props.get('nodename')
-
-        if filter_value:
-            filterkey, filterval = filter_value.split("=")
-        else:
-            filterkey, filterval = "tags", "name:%s" % nodename
+        filterkey, filterval = selector.split("=")
 
         #logger.debug("matching template node filters [%s=%s]to cluster nodes" % (filterkey, filterval))
         matching_nodes = self._filter(cluster_nodes, filterkey, filterval)
 
         return matching_nodes
 
-    def get_current_nodes(self):
-        ''' same as get_current_nodes_by_cluster but flattens the map ''' 
-
-        cur_nodes = self.get_current_nodes_by_cluster()
-
-        # flatten
-        ret_nodes = []
-        for cluster_name, nodelist in cur_nodes.iteritems():
-            ret_nodes.extend(nodelist)
-
-        ret_nodes = sorted(ret_nodes, key =lambda x: (x.get('vpc'), x.cluster))
-
-        return ret_nodes
-
-
-    def get_current_nodes_by_cluster(self):
-        ''' 
-            return nodes matched to all clusters in this region
-            if nodes are in the cluster config but not in the cloud, it creates nodes in state "absent"
-            returns { clustername : (nodes, absentnodes) }
-        '''
+    def _get_nodes_with_login_data(self):
+        ''' get all nodes matched to login rules '''
 
         nodecache_nodes = self.nodecache.get(self.cloud.region)
         if nodecache_nodes:
@@ -562,102 +471,21 @@ class ClusterCommandEngine(object):
                                                                     colorama.Fore.GREEN, colorama.Style.BRIGHT, colorama.Style.RESET_ALL))
             self.nodecache[self.cloud.region] = nodes
 
-        clusters = []
-        if self.cur_cluster:
-            clusters = [self.cur_cluster]
-        else:
-            clusters = [cluster_name for cluster_name, cluster in self.clusters.items() if cluster.get('cloud').get('region') == self.cloud.region]
-
-        ret_nodes = dict()
-        ret_nodes['Unassigned'] =  list()
-        for cluster_name in self.clusters:
-            ret_nodes[cluster_name] = list()
-
-        # iterate through configured clusters
-        for cluster_name in clusters:
-
-            cluster_nodes = self.get_cluster_nodes(nodes, cluster_name)
-
-            for node in cluster_nodes:
-                node.cluster = cluster_name
-
-            cluster = self.clusters[cluster_name]
-            cluster_props = cluster.get('cluster')
-            cluster_node_props = cluster.get('nodes')
-
-            for node_props in cluster_node_props:
-                matched_nodes = self._find_matching_node(node_props, cluster_nodes)
-
-                logger.debug("Found %s matching nodes for %s:%s", len(matched_nodes), 
-                                        cluster_name, node_props.get('selector'))
-
-                if matched_nodes:
-                    for node in matched_nodes:
-
-                        node.name = node_props.get('nodename')
-                        username = node_props.get('username')
-                        if username:
-                            node.username = username
-                        keyfile = node_props.get('keyfile')
-                        if keyfile:
-                            node.keyfile = keyfile
-
-                        #if node.cluster:
-                        #    logger.warning("node [%s] is configured in more than one cluster ([%s], [%s])" % 
-                        #                        (node.name, node.cluster,cluster_props.get('name')))
-
-                        node.cluster = cluster_props.get('name')
-                        ret_nodes[cluster_name].append(node)
-                else:
-                    logger.debug("Creating absent node for %s" % node_props.get('selector'))
-                    node_args = deepcopy(node_props)
-                    if node_args.get('selector'):
-                        node_args.pop('selector')
-                    abs_node = self.cloud.create_absent_node(**node_args)
-                    abs_node.cluster = cluster_props.get('name')
-                    ret_nodes[cluster_name].append(abs_node)
-
-            # sweep for non configered cluster nodes
-            for node in cluster_nodes:
-                if not node.name:
-                    ret_nodes[cluster_name].append(node)
-
-        # sweep for unassigned nodes
-        if not self.cur_cluster:
-            for node in nodes:
-                if not node.cluster:
-                    ret_nodes['Unassigned'].append(node)
-
+        self._match_nodes_to_login_rules(nodes)
+        ret_nodes = sorted(nodes, key =lambda x: (x.cluster, x.get('vpc')))
+        for i in range( len(ret_nodes) ):
+            ret_nodes[i].index = str(i + 1)
         return ret_nodes
 
+    def _match_nodes_to_login_rules(self, nodes):
 
-    def get_cluster_nodes(self, nodes, cluster_name):
-        ''' filter nodes by cluster filter '''
-
-        cur_cluster_config = self.clusters.get(cluster_name)
-
-        # filter by cluster filter
-        filterkey, filterval = "", ""
-
-        if cur_cluster_config.get('cluster'):
-            cluster_props = cur_cluster_config.get('cluster')
-            cluster_filter = cluster_props.get('filter')
-            if not cluster_filter:
-                name = cluster_props.get('name')
-                if name:
-                    filterkey, filterval = 'tags', ("cluster:%s" % name)
-                else:
-                    raise Exception("No cluster filter or name configured in cluster %s" % cluster_name)
-            elif '=' in cluster_filter:
-                filterkey, filterval = cluster_filter.split("=")
-            else:
-                raise Exception("Cluster template must have a name or a filter of the form key=val. Got [%s]" % cluster_filter)
-
-        logger.debug("Filtering to cluster with %s=%s" % (filterkey, filterval)) 
-        cluster_nodes = self._filter(nodes, filterkey, filterval)
-
-        return cluster_nodes
-
+        for rule in self.config.get_login_rules():
+            selector = rule.get('selector')
+            matched_nodes = self._find_matching_nodes(selector, nodes)
+            for node in matched_nodes:
+                if not node.login_rule:         # to maintain rule precedence, dont rematch
+                    node.login_rule = rule
+                    node.cluster = rule.get('member-of')
 
     def resolve_target_nodes(self, op='operation', target_node_name=None):
         '''
@@ -667,43 +495,43 @@ class ClusterCommandEngine(object):
         if not self.cloud:
             raise Exception('Internal error: No cloud provider loaded.')
 
-        cluster_nodes = self.get_current_nodes()
+        cluster_nodes = self._get_nodes_with_login_data()
 
         if not cluster_nodes:
             return []
 
-        # filter by target string 
+        # filter by target string
         # target string can be a name wildcard or filter expression with wildcards
 
-        if target_node_name == '*':
+        if target_node_name == '*' or not target_node_name:
             return cluster_nodes
 
-        filterkey, filterval = "", ""
-        if target_node_name:
-            if '=' in target_node_name:
-                parts = target_node_name.split("=")
+        filtered_nodes = set()
+        for filter_exp in target_node_name.split(","):
+            if '=' in filter_exp:
+                parts = filter_exp.split("=")
                 if len(parts) != 2:
                     str_err = "Filter format error. Should be key=value for node properties or tags=key:value for tags. Use quotes if needed."
                     raise Exception("%s%s%s" %(colorama.Fore.RED, str_err, colorama.Style.RESET_ALL))
                 filterkey, filterval  = parts
             else:
-                filterkey, filterval = 'name', target_node_name
+                filterkey, filterval = 'name', filter_exp
+                if self.is_numeric(filter_exp):
+                    filterkey = 'index'
 
-        if filterkey and filterval:
-            target_nodes  = self._filter(cluster_nodes, filterkey, filterval)
-        else:
-            target_nodes = cluster_nodes
+            if filterkey and filterval:
+                target_nodes  = self._filter(cluster_nodes, filterkey, filterval)
+                filtered_nodes.update(target_nodes)
 
-        if op:
+        if not filtered_nodes:
+            logger.info( 'no nodes found that match filter %s' % (target_node_name) )
+        elif op:
             if filterkey:
-                logger.debug( "invoking %s on nodes where %s=%s" % (op, filterkey, filterval) )
+                logger.debug( "invoking %s on nodes %s" % (op, target_node_name) )
             else:
                 logger.debug( "invoking %s on all cluster nodes" % op )
 
-        if not target_nodes:
-            logger.info( 'no nodes found that match filter %s=%s' % (filterkey, filterval) )
-
-        return target_nodes
+        return sorted( list(filtered_nodes), key=lambda x: x.index )
 
 
     def running_nodes_from_target(self, target_str):
@@ -736,6 +564,12 @@ class ClusterCommandEngine(object):
 
         return target_nodes
 
-
     def logout(self):
         self.lineterm.shutdown()
+
+    def is_numeric(self, s):
+        try:
+            int(s)
+            return True
+        except ValueError:
+            return False

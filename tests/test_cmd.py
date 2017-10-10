@@ -23,6 +23,19 @@ class MockCommandEngine(ClusterCommandEngine):
     def update_user_data(*args, **kwargs):
         pass
 
+class MockInstance():
+
+    def __init__(self):
+        self.stop_count = 0
+        self.terminate_count = 0 
+
+    def stop():
+        self.stop_count += 1
+
+    def terminate():
+        self.terminate_count +=1
+
+
 class MockBotoEC2Connection():
     ''' mocks data returned from the cloud provider '''
 
@@ -104,7 +117,7 @@ g_test_cluster_config = '''
 class TestCommandEngine(unittest.TestCase):
 
     def setUp(self):
-        self.engine = ClusterCommandEngine({ "aws_access_key_id" : "_", "aws_secret_access_key": "_", "region": "eu-central-1"})
+        self.engine = ClusterCommandEngine()
         self.engine.load_commands()
 
         self.engine.clusters =  {'nano1'  : yaml.load(g_test_cluster_config) }
