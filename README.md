@@ -37,35 +37,43 @@ Given 3 running instances tagged with Name = master, worker1, worker2, and 1 un-
 ```
 # list your instances
 
+```
 [eu-west-1]$ show
-dust:12:15:15 | Nodes in region: eu-west-1
+
+dust:23:45:11 | Nodes in region: eu-west-1
 
     @  Name         Type         State        ID                  IP              int_IP         
 
+
 --vpc-dcb059b9:
-cluster [mystack1]
-       1  worker0      t2.nano      running      i-00adf7a4e1e8eb976 52.51.198.208   172.31.19.41   
-       2  worker1      t2.nano      running      i-03b6a32edf6113c55 34.240.112.38   172.31.23.106  
-       3  master       t2.nano      running      i-0011f74f23a745e7f 52.208.15.246   172.31.22.129  
-cluster [mystack2]
-       4               t2.nano      running      i-06f17739c9b4d2112 34.241.19.12    172.31.21.91   
+
+unassigned:
+       1               t2.nano      running      i-06f17739c9b4d2112 34.241.19.12    172.31.21.91   
+       2  worker0      t2.nano      running      i-00adf7a4e1e8eb976 52.51.198.208   172.31.19.41   
+       3  worker1      t2.nano      running      i-03b6a32edf6113c55 34.240.112.38   172.31.23.106  
+       4  master       t2.nano      running      i-0011f74f23a745e7f 52.208.15.246   172.31.22.129  
 ```
 
-```
-dust$ show -v worker[0-3] # show details on workers0,1,2,3     
-dust$ stop 1,2            # stop nodes 1,2
-dust$ stop worker*        # stop nodes worker0, worker1
+dust$ node_operation  [filter expression]
 
-dust$ show state=running            # select nodes by attributes
-dust$ show -vv                      # list all filterable attributes
+```
+dust$ show -v               # list details on workers0,1,2,3     
+dust$ show -vv  worker[0-3] # list all filterable attributes
+dust$ stop 1,2              # stop nodes 1,2
+dust$ stop worker*          # stop nodes worker0, worker1
+
+dust$ start state=stopped           # select nodes by attributes
 dust$ show cluster=mysstack1        # select nodes by cluster
 dust$ show launch_time=2016-04-08*  # select nodes by attributes + wildcards
+
+dust$ tag 1,2 key=value
+dust$ tag worker* key=value
 
 ```
 
 **Example ssh operations:**
 
-@[filter-expression] commmand  # send ssh command to all nodes filtered by expression
+dust$ @[filter-expression] commmand  
 
 ```
 dust$ @ free -m  	      # run the free -m command over ssh on all running nodes
@@ -89,6 +97,7 @@ dust$ @ free -m  	      # run the free -m command over ssh on all running nodes
       [master] Swap:            0          0          0
       [master]
 
+
 dust$ @worker* service restart nginx
 dust$ put data.dat worker* /opt/data
 
@@ -97,7 +106,7 @@ dust$ @1,2 ls           # show /tmp
 ```
 
 There is a simple plugin model for adding stateful commands.
-All commands you see in dust cluster are implemented as plugins.
+All commands you see in dust cluster are implemented as discoervable plugins.
 
 
 #### Configure ssh logins
@@ -117,7 +126,7 @@ i) by using the assign command
     member-of: webapp
 
     1] selector help:
-    selector is a dustcluster filter expression.`
+    selector is a filter expression.`
 
     selector: *                    # selects all nodes
     selector: id=0-asd1212         # selects a single node
@@ -125,7 +134,8 @@ i) by using the assign command
 
     2] member-of help:
     member-of adds nodes to a cluster, these nodes are grouped together in "show", 
-    and can be made into a working set with the "use" command
+    and can be made into a working set with the "use" command. cluster names can be
+    used in filter expressions.
 
     3] login rules precedence:
 
@@ -139,11 +149,14 @@ i) by using the assign command
     - selector: *
         ...
 
-    a command like "@1 service restart xyz" will search for a login rule by matching prod, dev, 
+    a command like "@node5 service restart xyz" will search for a login rule by matching prod, dev, 
     and then default (*) in that order'''
 
 ii) by manually editing the login rules file.
       See a sample login rules file here.
+
+After assigning all nodes:
+
 
 ### More on Filter expressions 
 

@@ -71,6 +71,8 @@ class ClusterCommandEngine(object):
 
         self.init_default_provider()
 
+        self.clusters = self.config.get_clusters()
+
         self._commands = {}
         self.command_state = CommandState()
         self.lineterm = LineTerm()
@@ -155,42 +157,21 @@ class ClusterCommandEngine(object):
 
     def switch_to_cluster(self, cluster_name):
 
-        if cluster_name not in self.clusters:
+        if cluster_name.strip() == '*':
+            self.cur_cluster = ""
+            return     
+
+        login_rules = self.config.get_login_rules()
+        clusters = set([ rule.get('member-of') for rule in login_rules ])
+
+        if cluster_name not in clusters:
             logger.error("%s is not a recognized cluster." % cluster_name)
             self.show_clusters()
             return
 
         self.cur_cluster = cluster_name
-
-        cluster_config_data = self.clusters[cluster_name]
-
-        cloud_data = cluster_config_data.get('cloud')
-
-        if not cloud_data:
-            raise Exception("No 'cloud:' section in template")
-
-        self.init_cloud_provider(cloud_data)
-
-        cluster_nodes = self.get_current_nodes()
-
-        logger.debug(cluster_nodes)
-
-        num_unnamed_nodes = len([node for node in cluster_nodes if not node.name])
-        num_absent_nodes = len([node for node in cluster_nodes if not node.hydrated])
-
-        self.show(cluster_nodes)
-
-        if num_absent_nodes:
-            logger.info("Found %d nodes in the cluster config that cannot be matched to any cloud reservations."
-                            % num_absent_nodes)
-
-        if num_unnamed_nodes:
-            logger.info("Found %d nodes in the cloud for this cluster filter that are not in the cluster config."
-                            % num_unnamed_nodes)
-            logger.info("Edit the template or use the '$assign filter_expression' command to create a new one.")
-
-        logger.debug('Switched to cluster config %s with %s nodes' % (cluster_name, len(cluster_config_data.get('nodes', [])) ))
-
+        
+        cluster_nodes = self.resolve_target_nodes()
 
     def init_cloud_provider(self, cloud_data):
 
@@ -226,31 +207,15 @@ class ClusterCommandEngine(object):
 
         return cloud_provider
 
-
     def show_clusters(self):
-
-        clusters = {}
-
-        for cluster_name, obj_yaml in self.config.get_clusters().iteritems():
-
-            region = obj_yaml.get('cloud').get('region')
-
-            if region not in clusters:
-                clusters[region] = []
-
-            clusters[region].append(obj_yaml)
-
-        for region in clusters:
-            print "Region: %s" % region
-
-            for obj_yaml in clusters[region]:
-                print " ", obj_yaml.get('cluster').get('name')
-
+        login_rules = self.config.get_login_rules()
+        clusters = set([ rule.get('member-of') for rule in login_rules ])
+        logger.info("%sConfigured clusters with logins:%s" % (colorama.Fore.GREEN, colorama.Style.RESET_ALL))
+        for cluster in clusters:
+            print cluster
 
     def unload_cur_cluster(self):
-        ''' unload a cluster template ''' 
         self.cur_cluster = ""
-
 
     def get_default_key(self, region=""):
         ''' get the default key for current or specified region
@@ -441,7 +406,7 @@ class ClusterCommandEngine(object):
                 if not val:
                     continue
                 logger.debug("trying filter %s on %s..." % (filterval, val))
-                if not valid.match(val):
+                if not valid.match(str(val)):
                     continue
                 filtered.append(node)
 
@@ -499,6 +464,9 @@ class ClusterCommandEngine(object):
 
         if not cluster_nodes:
             return []
+
+        if self.cur_cluster:
+            cluster_nodes = filter(lambda x: x.login_rule.get('member-of')==self.cur_cluster, cluster_nodes)
 
         # filter by target string
         # target string can be a name wildcard or filter expression with wildcards

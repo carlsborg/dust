@@ -32,9 +32,9 @@ class DustConfig(object):
         DustConfig._inited = True
 
         self.credentials = {}
-        self.user_data = {}
+        self.user_data   = {}
         self.login_rules = []
-        self.clusters = {}
+        self.clusters    = {}
 
         self.history_file     = os.path.join(self.dust_dir, 'cmd_history')
         self.credentials_file = os.path.join(self.dust_dir, 'credentials')
@@ -43,6 +43,9 @@ class DustConfig(object):
         self.login_rules_file = os.path.join(self.dust_dir, 'login_rules.yaml')
         self.default_keys_dir = os.path.join(self.dust_dir, 'keys')
         self.clusters_dir     = os.path.join(self.dust_dir, 'clusters')
+
+        if not os.path.exists(self.dust_dir):
+            os.makedirs(self.dust_dir)
 
         # first time setup
         if not os.path.exists(self.credentials_file) or not os.path.exists(self.userdata_file):
@@ -94,6 +97,13 @@ class DustConfig(object):
     def get_history_file_path(self):
         return self.history_file
 
+    def get_clusters_dir(self):
+
+        if not os.path.exists(self.clusters_dir):
+            os.makedirs(self.clusters_dir)
+
+        return self.clusters_dir
+
     def read_login_rules(self):
         if os.path.exists(self.login_rules_file):
             with open(self.login_rules_file, "r") as fh:
@@ -102,13 +112,12 @@ class DustConfig(object):
         else:
             login_rules = {}
 
-        self.login_rules =  login_rules.get('login_rules')
+        self.login_rules =  login_rules.get('login_rules') or []
 
     def write_login_rules(self):
-        str_yaml = yaml.dump(self.login_rules, default_flow_style=False)
+        str_yaml = yaml.dump({ "login_rules" : self.login_rules}, default_flow_style=False)
         with open(self.login_rules_file, 'w') as fh:
             fh.write(str_yaml)
-
 
     def read_user_data(self):
         if os.path.exists(self.userdata_file):

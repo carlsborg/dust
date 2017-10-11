@@ -179,7 +179,7 @@ def create_cluster(args, cluster, logger):
         if not cluster_name:
             raise Exception("No cluster name in template %s" % specfile)
 
-        if cluster_name in cluster.clusters:
+        if cluster_name in cluster.config.get_clusters():
             obj_yaml = cluster.clusters[cluster_name]
             existing_region = obj_yaml.get('cloud').get('region').lower()
             raise Exception("A cluster named %s exists in region %s. Please use a different name" % 
@@ -278,10 +278,7 @@ def create_cluster(args, cluster, logger):
         # save it to ./dustcluster/clusters/name_region.cfn
         cfn_json = cfn_template.to_json()
 
-        if not os.path.exists(cluster.clusters_dir):
-            os.makedirs(cluster.clusters_dir)
-
-        writecfnto = os.path.join(cluster.clusters_dir, "%s.%s.cfn" % (cluster_name, target_region))
+        writecfnto = os.path.join(cluster.config.get_clusters_dir(), "%s.%s.cfn" % (cluster_name, target_region))
         with open(writecfnto, "w") as fh:
             fh.write(cfn_json)
 
@@ -386,23 +383,16 @@ def expand_clones(nodes):
 
 
 def save_cluster(cluster, obj_yaml, logger):
-    ''' write cluster config of the new cluster with filters '''
+    ''' write login rules with new cluster with filters '''
 
     cluster_props = obj_yaml.get('cluster')
     name = cluster_props.get('name')
-    cluster_props['filter']= "tags=aws:cloudformation:stack-name:%s" % name
+    filter_exp = "tags=aws:cloudformation:stack-name:%s" % name
 
-    nodes_props = obj_yaml.get('nodes')
-    for node in nodes_props:
-        node['selector'] = 'tags=Name:%s'  % node.get('nodename')
-
-    str_yaml = yaml.dump(obj_yaml, default_flow_style=False)
-    ret = cluster.config.save_cluster_config(name, str_yaml)
-
-    if ret:
-        logger.info("Wrote cluster to %s" % ret)
-    return ret
-
+    region = obj_yaml.get('cloud').get('region')
+    args = " ec2-user %s %s h" % (cluster.get_default_key(region)[1] , name)
+    print "ARGs", args
+    cluster.handle_command("assign", filter_exp + args)
 
 def get_cfn_connection(logger, cluster, region):
 

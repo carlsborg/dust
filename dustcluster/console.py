@@ -63,9 +63,6 @@ class Console(Cmd):
         try:
             if os.path.exists(self.config.get_history_file_path()):
                 readline.read_history_file(self.config.get_history_file_path())
-            else:
-                if not os.path.exists(self.dust_dir):
-                    os.makedirs(self.dust_dir)
 
         except IOError:
             logger.warning("Error reading history file. No command history available.")

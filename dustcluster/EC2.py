@@ -184,7 +184,7 @@ class EC2Node(object):
 
         self._hydrated = False
 
-        self.login_rule = ""
+        self.login_rule = {}
         self.index = None
 
         # for starting new nodes
@@ -240,7 +240,7 @@ class EC2Node(object):
 
     @property
     def name(self):
-        return self.tags.get('Name') or ""
+        return self.tags.get('Name') or self.tags.get('name') or ""
 
     @property
     def cluster(self):

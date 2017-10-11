@@ -15,13 +15,14 @@
 import yaml
 import os
 from collections import OrderedDict
+import colorama
 
 # export commands
 commands = ['use', 'assign']
 
 def use(cmdline, cluster, logger):
     '''
-    use [region] | [cluster name] - select a set of nodes to work with
+    use * | [region] | [cluster name] - select a set of nodes to work with
 
     Notes:
     Select all nodes in a region, or defined by a cluster config
@@ -31,18 +32,22 @@ def use(cmdline, cluster, logger):
 
     Examples:
     use us-east-1       # work with all nodes in this region 
-    use clusterA        # work with the nodes defined in cluster config saved as ./dustcluster/clusters/clusterA.yaml
+    use clusterA        # restrict nodes to a working set defined by member-of in login_rules.yaml
+    use *               # lose working set
     '''
 
     args = cmdline.split()
 
-    usage = "use [region] | [cluster_name]"
+    usage = "use [region] | [cluster_name] | *"
     if not args:
         logger.error(usage)
         return
 
+    login_rules = cluster.config.get_login_rules()
+    clusters = set([ rule.get('member-of') for rule in login_rules ])
+
     try:
-        if args[0] in cluster.clusters:
+        if args[0] in clusters:
             use_cluster(args, cluster, logger)
         else:
             use_region(args, cluster, logger)
@@ -62,26 +67,16 @@ def assign(cmdline, cluster, logger):
 
     Example:
 
-    $assign
-    selector: tags=key:value 
+    $assign tags=key:value
     login-user: ec2-user
     keyfile : /path/to/kyfile
     member-of: webapp
 
-    1] selector help:
-    selector is a dustcluster filter expression.`
-
-    selector: *                    # selects all nodes
-    selector: id=0-asd1212         # selects a single node
-    selector: subnet=s-012sccas    # selects all nodes in a subnet
-
-    see show -vv for all posible attributes you can create filter expressions on
-
-    2] member-of help:
+    1] member-of help:
     member-of adds nodes to a cluster, these nodes are grouped together in "show", 
     and can be made into a working set with the "use" command
 
-    3] login rules precedence:
+    2] login rules precedence:
 
     login rules are applied in order that they appear in the file. 
     So given a login_rules.yaml containing:
@@ -98,81 +93,59 @@ def assign(cmdline, cluster, logger):
 
     args = cmdline.split()
 
-    usage = "assign filter-expression"
+    usage = "assign [filter-exp]"
     if not args:
         logger.error(usage)
         return
 
-    filter_exp = args[0]
+    filter_exp  = args[0]
     target_nodes = cluster.any_nodes_from_target(filter_exp)
 
-    if not target_nodes:
-        return
-
-    target_cluster = ""
-    if len(args) > 1:
-        target_cluster = args[1]
-
-    cluster.show(target_nodes)
-
-    append_nodes = False
-    if target_cluster in cluster.clusters:
-        append_nodes(filter_exp, target_nodes, target_cluster, cluster, logger)
+    precedence = ""
+    if len(args) >= 4:
+        login_user = args[1]
+        keyfile    = args[2]
+        member_of  = args[3]
+        precedence = args[4]
     else:
-        write_new_cluster(filter_exp, target_nodes, target_cluster, cluster, logger)
+        if len(target_nodes) == 0:
+            logger.info("%sLogin rule [%s] matched with %s nodes%s." % 
+                    (colorama.Fore.RED, filter_exp, len(target_nodes), colorama.Style.RESET_ALL))
+            return
 
-def append_nodes(target, target_nodes, target_cluster, cluster, logger):
-    print "TBD"
-    pass
+        logger.info("%sLogin rule [%s] matched with %s nodes%s." % 
+                    (colorama.Fore.GREEN, filter_exp, len(target_nodes), colorama.Style.RESET_ALL))
 
-def write_new_cluster(filter_exp, target_nodes, target_cluster, cluster, logger):
+        login_user = raw_input("login-user: ")
+        keyfile    = raw_input("keyfile: ")
 
-    loginuser = raw_input("Ssh login user:")
-    cloud = dict([
-                ('provider' , 'ec2'),
-                ('region' , cluster.cloud.region)
-             ])
+        while not os.path.exists(keyfile):
+            logger.info("cannot read keyfile/does not exist")   
+            keyfile    = raw_input("keyfile: ")
 
-    if target_cluster:
-        name = target_cluster
+        member_of  = raw_input("member-of: ")
+
+        ret = ""
+        while ret not in ['h','l','c']:
+            ret = raw_input("Write this rule with [h]ighest or [l]owest precedence or [c]ancel: ").lower().strip()
+        if ret == "c":
+            return
+        precedence = ret
+
+    login_rule =  { "selector" : filter_exp, 
+                    "login-user" : login_user, 
+                    "keyfile" : keyfile, 
+                    "member-of" : member_of }
+
+    login_rules = cluster.config.get_login_rules()
+    if precedence == "l":
+        login_rules.append(login_rule)
     else:
-        name = raw_input("Name this cluster:")
+        login_rules.insert(0, login_rule)
 
-    # write a new yaml template to ./dustcluster templates
-    cluster_props = dict([
-                    ('name', name),
-                    ('filter' , filter_exp)
-                    ])
+    cluster.config.write_login_rules()
 
-    nodes = []
-    for i, tnode in enumerate(target_nodes):
-        node = dict()
-        node['nodename'] = deduce_node_name(tnode, i)
-        node['username'] = loginuser
-        node['selector'] = deduce_selector(tnode, i)
-        nodes.append(node)
-
-    template = dict([   ('cloud', cloud),
-                        ('cluster', cluster_props),
-                        ('nodes', nodes)
-                        ])
-
-    str_yaml = yaml.dump(template, default_flow_style=False)
-
-    logger.info("\n" + str_yaml)
-
-    save_to_file = raw_input("Save as cluster %s [yes]:" % name) or "yes"
-
-    if save_to_file.lower().startswith('y'):
-            
-        ret = cluster.save_cluster_config(name, str_yaml)
-        if ret: 
-            logger.info("Wrote cluster config to %s. Edit the file to rename nodes from defaults %s.. %s" 
-                        % (ret,  nodes[0].get('nodename'), nodes[-1].get('nodename')))
-
-            #cluster.switch_to_cluster(name)
-            cluster.invalidate_cache()  # we want refresh to pick up the new names
-
+    logger.info("Wrote login rule. Use $logins to view file")
 
 def use_cluster(args, cluster, logger):
 
