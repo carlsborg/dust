@@ -34,7 +34,6 @@ At a bash prompt, drop into a dust shell:
 
 Given 3 running instances tagged with Name = master, worker1, worker2, and 1 un-named node:
 
-```
 # list your instances
 
 ```
