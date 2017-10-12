@@ -242,6 +242,7 @@ class EC2Node(object):
     def name(self):
         return self.tags.get('Name') or self.tags.get('name') or ""
 
+
     @property
     def cluster(self):
         return self._clustername
@@ -351,13 +352,17 @@ class EC2Node(object):
 
     def disp_headers(self):
         headers = ["@",    "Name", "Type", "State", "ID",  "IP", "int_IP"]
-        fmt =     ["%-3s"  "%-12s",  "%-12s",  "%-12s",  "%-19s", "%-15s", "%-15s"]
+        fmt =     ["%-3s"  "%-15s",  "%-12s",  "%-12s",  "%-19s", "%-15s", "%-15s"]
         return headers, fmt
 
 
     def disp_data(self):
 
-        vals = [self.index, self.name, self._instance_type]
+        name = self.name
+        if len(name) > 14:
+            name = name[:6] + ".." + name[-6:]
+
+        vals = [self.index, name, self._instance_type]
 
         if self._vm:
             vm = self._vm

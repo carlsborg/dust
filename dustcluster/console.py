@@ -37,7 +37,7 @@ import atexit
 from dustcluster import util
 logger = util.setup_logger( __name__ )
 
-if os.environ.get('COLORTERM'):
+if os.environ.get('COLORTERM') or 'color' in os.environ.get('TERM'):
     colorama.Fore.CYAN  = '\x1b[38;5;75m'
     colorama.Fore.GREEN = '\x1b[38;5;76m'
 

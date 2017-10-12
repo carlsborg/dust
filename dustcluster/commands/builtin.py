@@ -10,6 +10,8 @@
 # FOR A PARTICULAR PURPOSE. See the GNU Affero GPL for more details.
 #
 
+import colorama
+
 ''' dust commands to start/stop/terminate nodes '''
 
 # export commands
@@ -18,15 +20,24 @@ commands  = ['show', 'refresh', 'start', 'stop', 'terminate']
 
 def show(cmdline, cluster, logger):
     '''
-    show  [-vv] [filter]  - Show all nodes or filtered nodes
+    show  [-vv] [filter_exp | search_term]  - Show all nodes or filtered nodes
 
-    Show node data from in memory cache. 
+    List node data from in memory cache. If filter_exp does not match a node index,
+    node name, or EC2 attribute key value, then search all attributes and tags.
+
     Use $refresh to update cache.  
-    Shows only nodes selected by the use command, if any.
+    Shows only nodes selected by the use command, if it was invoked earlier.
 
-    Example:
-    show -v launch_time=*2016-04*
-    show -vv ip=52.51* 
+    -v  show more attributes
+    -vv show all attributes
+
+    Example:    
+    show 1,3,4                   # filter_exp matches index numbers
+    show worker[3-15]            # filter_exp matchs node names
+    show launch_time=2017-10*    # filter_exp matches EC2 attribute 
+    show 192.168.0.1             # no filter_exp match, use as search term 
+    show state=running           # filter_exp matches 
+    show running                 # search term matches
     '''
 
     args = cmdline.split()
@@ -42,13 +53,16 @@ def show(cmdline, cluster, logger):
  
         cmdline = " ".join(args[1:])
 
+    if not cmdline.strip():
+        cmdline = '*'
+
     _show(cmdline, cluster, logger, extended)
 
 def _show(cmdline, cluster, logger, extended=0):
     try:
 
         target_nodes = []
-        target_nodes = get_target_nodes(logger, cluster, cmdline)
+        target_nodes = get_target_nodes(logger, cluster, cmdline, search=True)
         if not target_nodes:
             return
 
@@ -65,7 +79,6 @@ def refresh(cmdline, cluster, logger):
     Note that some operations (start/stop/etc) cause a refresh to occur on the next show.
     '''
 
-
     cluster.invalidate_cache()
     _show(cmdline, cluster, logger, False)
 
@@ -79,11 +92,16 @@ def start(cmdline, cluster, logger):
                 Node names and filter values can be regular expressions.
 
     Example:
-    start worker1
+    start 3,4,5
+    start devdb,dev1,dev2
     start state=stopped
     start worker[0-10]
-    stop worker*
-    '''    
+    start cluster=spark1
+    '''
+
+    if not cmdline.strip():
+        logger.error("start [target]   - Start nodes or restart stopped nodes")
+        return
 
     try:
 
@@ -129,7 +147,12 @@ def stop(cmdline, cluster, logger):
     stop worker[0-20]
     stop worker*
     '''
-    operation(logger, cluster, 'stop', cmdline)
+
+    if not cmdline.strip():
+        logger.error("stop [target]   - Stop nodes")
+        return
+    
+    operation(logger, cluster, 'stop', cmdline, confirm=True)
     cluster.invalidate_cache()
 
 def terminate(cmdline, cluster, logger):
@@ -147,6 +170,11 @@ def terminate(cmdline, cluster, logger):
     terminate worker[0-20]
     terminate worker*
     '''
+
+    if not cmdline.strip():
+        logger.error("terminate [target]  - Terminate nodes")
+        return
+
     operation(logger, cluster, 'terminate', cmdline, confirm=True)
     cluster.invalidate_cache()
 
@@ -162,9 +190,8 @@ def operation(logger, cluster, op, target_node_str=None, confirm=False):
             return
 
         if confirm:
-            logger.debug( "Invoking %s on these nodes" % op )
             cluster.show(target_nodes)
-
+            logger.info( "%sInvoking %s on these nodes%s" % (colorama.Fore.RED, op, colorama.Style.RESET_ALL) )
             confirm_str = "Continue [Y/N]:"
             s = raw_input(confirm_str) 
             while( s.lower() != 'y' and s.lower() != 'n' ):
@@ -174,7 +201,8 @@ def operation(logger, cluster, op, target_node_str=None, confirm=False):
                 return
 
         for node in target_nodes:
-            getattr(node, op)()
+            if node.state != "terminated":
+                getattr(node, op)()
 
     except Exception, e:
         logger.exception('Error: %s' % e)
@@ -183,9 +211,9 @@ def operation(logger, cluster, op, target_node_str=None, confirm=False):
     logger.info( 'ok' )
 
 
-def get_target_nodes(logger, cluster, target_node_str=None):
+def get_target_nodes(logger, cluster, target_node_str=None, search=False):
 
-    target_nodes = cluster.resolve_target_nodes(op='show', target_node_name=target_node_str)
+    target_nodes = cluster.resolve_target_nodes(search=search, target_node_name=target_node_str)
 
     return target_nodes
 

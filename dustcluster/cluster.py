@@ -398,7 +398,7 @@ class ClusterCommandEngine(object):
 
         else:
 
-            regex = fnmatch.translate(filterval)
+            regex = fnmatch.translate(filterval.lower())
             valid = re.compile(regex)
 
             for node in nodes:
@@ -406,14 +406,43 @@ class ClusterCommandEngine(object):
                 if not val:
                     continue
                 logger.debug("trying filter %s on %s..." % (filterval, val))
-                if not valid.match(str(val)):
+                if not valid.match(str(val).lower()):
                     continue
                 filtered.append(node)
 
         return filtered
 
+    def _search(self, nodes, search_term):
+        '''
+        filter a list of nodes by search term
+        e.g. "running"
+        '''
+
+        results = set()
+        search_term = search_term.lower()
+
+        for node in nodes:
+            for val in node.get('tags').values():
+                if search_term in val.lower():
+                    results.add(node)
+                    break
+
+            for key in node.extended_fields + node.all_fields:
+                if search_term in str(node.get(key)).lower():
+                    results.add(node)
+                    break
+
+        return list(results)
+
     def _find_matching_nodes(self, selector, cluster_nodes):
         ''' using node_props.selector, find the matching node in cluster_nodes ''' 
+
+        if selector == '*':
+            return cluster_nodes
+
+        if '=' not in selector:
+            logger.error("Invalid login selector %s" % selector)
+            return []
 
         filterkey, filterval = selector.split("=")
 
@@ -452,7 +481,7 @@ class ClusterCommandEngine(object):
                     node.login_rule = rule
                     node.cluster = rule.get('member-of')
 
-    def resolve_target_nodes(self, op='operation', target_node_name=None):
+    def resolve_target_nodes(self, search=False, target_node_name=None):
         '''
             given a target string, filter nodes from cloud provider and create a list of target nodes to operate on
             filter by all clusters
@@ -465,13 +494,14 @@ class ClusterCommandEngine(object):
         if not cluster_nodes:
             return []
 
+        # working set
         if self.cur_cluster:
             cluster_nodes = filter(lambda x: x.login_rule.get('member-of')==self.cur_cluster, cluster_nodes)
 
         # filter by target string
-        # target string can be a name wildcard or filter expression with wildcards
+        # target string can be a comma separated list of filter expressions
 
-        if target_node_name == '*' or not target_node_name:
+        if target_node_name == '*':
             return cluster_nodes
 
         filtered_nodes = set()
@@ -491,13 +521,13 @@ class ClusterCommandEngine(object):
                 target_nodes  = self._filter(cluster_nodes, filterkey, filterval)
                 filtered_nodes.update(target_nodes)
 
+        if search and not filtered_nodes:
+            filtered_nodes.update( self._search(cluster_nodes, target_node_name))
+
         if not filtered_nodes:
-            logger.info( 'no nodes found that match filter %s' % (target_node_name) )
-        elif op:
-            if filterkey:
-                logger.debug( "invoking %s on nodes %s" % (op, target_node_name) )
-            else:
-                logger.debug( "invoking %s on all cluster nodes" % op )
+            logger.info( "no nodes found that match filter %s" % (target_node_name) )
+        else:
+            logger.debug( "resolved target string [%s] to %s nodes" % (target_node_name, len(filtered_nodes)) )
 
         return sorted( list(filtered_nodes), key=lambda x: x.index )
 

@@ -61,8 +61,10 @@ def atssh(cmdline, cluster, logger):
                 have_logins = False
 
         if not have_logins:
-            show_help(cluster, logger)
-            return
+            logger.info("%sSome or all nodes do not have login rules. Use $logins and $assign to fix.%s" %
+                            (colorama.Fore.GREEN, colorama.Style.RESET_ALL))
+
+        target_nodes = filter( lambda x: x.login_rule , target_nodes )
 
         sshcmd = cmdline[len(target):].strip()
 

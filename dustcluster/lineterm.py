@@ -241,13 +241,13 @@ class SSHTerm(object):
         return self.transport and self.transport.is_authenticated() and self.transport.is_active()
 
     def login(self, cookie=False):
-        hostname = self.node.get('public_dns_name')
+        hostname = self.node.get('public_ip_address') or self.node.get('private_ip_address')
         if not hostname:
-            hostname = self.node.get('ip')
+            hostname = self.node.get('hostname')
         username = self.node.login_rule.get('login-user')
 
         if not hostname or not username:
-            raise Exception("No hostname or username available for node %s" % node.name or node.index)
+            raise Exception("No ip, hostname or username available for node %s" % node.name or node.index)
 
         logger.debug('hostname=[%s], username=[%s], key=[%s]' % (hostname, username, self.keyfile))
         if not self.is_connected():
@@ -373,7 +373,7 @@ class SSHTerm(object):
 
         private_key_path = self.keyfile 
 
-        logger.info('ssh login to host=[%s] keyfile=[%s]' % (hostname, private_key_path))
+        logger.info('ssh login to host=[%s] keyfile=[%s] user=[%s]' % (hostname, private_key_path, username))
 
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.connect((hostname, port))
