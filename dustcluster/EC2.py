@@ -200,7 +200,7 @@ class EC2Node(object):
                                }
 
         self.extended_fields = [ 'dns_name', 'image', 'tags', 'key', 'launch_time', 
-                                'username', 'groups', 'state']
+                                'username', 'groups', 'state', 'login']
 
         self.all_fields = ['ami_launch_index', 'architecture', 'block_device_mappings', 'classic_address',
                      'client_token', 'console_output', 'ebs_optimized', 'elastic_gpu_associations', 
@@ -212,7 +212,7 @@ class EC2Node(object):
                        'state_transition_reason', 'subnet', 'subnet_id', 'tags', 'virtualization_type', 'volumes', 
                        'vpc', 'vpc_addresses', 'vpc_id']
 
-        self.non_instance_fields = ['name', 'username', 'cluster', 'keyfile', 'key', 'tags', 'groups', 'state', 'index']
+        self.non_instance_fields = ['name', 'username', 'cluster', 'keyfile', 'key', 'tags', 'groups', 'state', 'index', 'login']
 
     def __repr__(self):
         data = self.disp_data()
@@ -300,6 +300,12 @@ class EC2Node(object):
         if self._vm:
             return [ grp.get('GroupName') for grp in self._vm.security_groups ] 
         return []
+
+    @property
+    def login(self):
+        if self.login_rule:
+            return "%s %s" % ( self.login_rule.get('login-user'), self.login_rule.get('keyfile') )
+        return "(not configured)"
 
     def start(self):
 

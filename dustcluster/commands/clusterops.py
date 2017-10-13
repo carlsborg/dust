@@ -11,7 +11,7 @@ from dustcluster.EC2 import EC2Config
 commands = ['cluster']
 
 def usage(logger):
-    logger.error("cluster [create filename] | [status clustername] | [delete clustername] | list")
+    logger.error("cluster [new] | [create clustername] | [status clustername] | [delete clustername] | list")
 
 
 def cluster(cmdline, cluster, logger):
@@ -19,10 +19,11 @@ def cluster(cmdline, cluster, logger):
     cluster [create filename] | [status clustername] | [delete clustername] | list - create, delete or see cluster status
 
     Examples:
-    cluster create slurm.yaml   # bring up a cluster and save it to ~/.dustcluster/clusters
+    cluster new                 # create a new cluster spec
+    cluster create              # bring up a cluster using cloudformation 
     cluster status slurm
     cluster delete slurm
-    cluster list                # see all clusters
+    cluster list                # see all cloudformation clusters
     '''
 
     args = cmdline.split()
@@ -33,7 +34,9 @@ def cluster(cmdline, cluster, logger):
 
     subcommand = args[0]
 
-    if subcommand == 'create':
+    if subcommand == 'new':
+        new_cluster(args, cluster, logger)
+    elif subcommand == 'create':
         create_cluster(args, cluster, logger)
     elif subcommand == 'delete':
         delete_cluster(args, cluster, logger)
@@ -137,6 +140,49 @@ def configure_vpc(cfn_template, cluster_name):
 
     return vpc_id, vpc_subnet
 
+def new_cluster(args, cluster, logger):
+
+    name = raw_input("Name this cluster: ")
+
+    if (os.path.exists(cluster.config.get_clusters_dir() + "%s.cfn" % name)):
+        clusters = cluster.config.get_clusters()
+        logger.error("A cluster named %s already exists in region %s. Please use a different name" % 
+                                    (name, clusters.get(name).get('cloud').get('region')))
+        return
+
+    numnodes = int(raw_input("Number of nodes: "))
+    nodetype = raw_input("Node type [m4.large]: ") or "m4.large"
+
+    use_placement_group = 'n'
+    if "nano" not in nodetype and "small" not in nodetype and "micro" not in nodetype: 
+        use_placement_group = raw_input("use placement group?: [y]") or 'y'
+
+    spec = {}
+    spec['cloud']   = { 'provider' : 'ec2', 'region': cluster.cloud.region }
+    spec['cluster'] = { 'name': name }
+
+    if (use_placement_group == 'y' or use_placement_group == 'yes'):
+        spec['cluster']['use_placement_group'] = 'yes'
+
+    nodes = []
+
+    for i in range(0,2):
+        node = dict()
+        node['instance_type'] = nodetype
+        if (i==0):
+            node['nodename'] = "master"
+        else:
+            node['nodename'] = "worker"
+            node['count'] = numnodes-1
+        nodes.append(node)
+
+    spec['nodes'] = nodes
+    str_yaml = yaml.dump(spec, default_flow_style=False)
+    ret = cluster.config.save_cluster_config(name, str_yaml)
+    logger.info("Saved cluster spec to: %s" % ret)
+    logger.info("Edit this file if needed and run %s$cluster create %s%s" % 
+                    (colorama.Fore.GREEN, name, colorama.Style.RESET_ALL))
+    cluster.config.read_all_clusters()
 
 def create_cluster(args, cluster, logger):
     '''
@@ -146,14 +192,15 @@ def create_cluster(args, cluster, logger):
 
     try:
 
-        specfile = args[1]
+        cluster_name = args[1]
+        clusters = cluster.config.get_clusters()
 
-        str_yaml = ""
-        with open(specfile, "r") as fh:
-            str_yaml = fh.read()
+        obj_yaml = clusters.get(cluster_name)
 
-        obj_yaml = yaml.load(str_yaml)
-
+        if not obj_yaml:
+            logger.error("no such cluster spec in %s" % cluster.config.get_clusters_dir()) 
+            return
+        
         cloud_spec = obj_yaml.get('cloud')
         target_region = cloud_spec.get('region')
 
@@ -178,12 +225,6 @@ def create_cluster(args, cluster, logger):
         cluster_name = cluster_spec.get('name')
         if not cluster_name:
             raise Exception("No cluster name in template %s" % specfile)
-
-        if cluster_name in cluster.config.get_clusters():
-            obj_yaml = cluster.clusters[cluster_name]
-            existing_region = obj_yaml.get('cloud').get('region').lower()
-            raise Exception("A cluster named %s exists in region %s. Please use a different name" % 
-                                    (cluster_name,existing_region))
 
         # placement group
         enable_placement = str(cluster_spec.get('use_placement_group')).lower()
@@ -346,7 +387,7 @@ def delete_cluster(args, cluster, logger):
         # delete the stack
         conn.delete_stack(cluster_name)
         cluster.config.delete_cluster_config(cluster_name, region)
-        cluster.read_all_clusters()
+        cluster.config.read_all_clusters()
 
         cluster.invalidate_cache()
 

@@ -450,7 +450,7 @@ class LineTerm(object):
 
         self.command(keyfile, node, cmd=None)
 
-    def put(self, keyfile, node, srcfile, destfile=None):
+    def put(self, keyfile, node, srcfile, destdir=None):
 
         if not os.path.isfile(srcfile):
             logger.error('file does not exist locally : %s' % srcfile)
@@ -463,8 +463,10 @@ class LineTerm(object):
 
             sftp = term.sftp
             fname = os.path.basename(srcfile)
-            if not destfile:
+            if not destdir:
                 destfile = fname
+            else:
+                destfile = destdir + "/" + fname
             ret = sftp.put(srcfile, destfile, confirm=True)
 
             if not getattr(ret, 'filename', None):

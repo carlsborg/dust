@@ -75,8 +75,6 @@ web
 
 ```
 
-Life is good.
-
 You can list all clusters, and delete a cluster with:
 
 > dust$ cluster delete slurm1
@@ -142,7 +140,7 @@ cluster:
   name: sample1
   use_placement_group: yes
 ```
-
+  
 This puts the nodes in a 10GBps network and closeby to each other for lower inter-node latency.
 
 Notes: 

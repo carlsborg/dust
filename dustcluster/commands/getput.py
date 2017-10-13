@@ -20,42 +20,41 @@ commands = ['put', 'get']
 
 def put(cmdline, cluster, logger):
     '''
-    put tgt src [dest] - upload src file to a set of target nodes
+    put localfiles target [target dir] - upload local files
 
     Notes:
-    src can have wildcards
+    localfiles can have wildcards
 
     Examples:
-    put worker* /opt/data/data.txt  # uploads data.txt to home dir
-    put worker* /opt/data/data.txt /opt/data/data.txt
-    put worker* /opt/data/*.txt     # wildcards work
+    put /opt/data/data1.txt worker* # uploads data.txt to cwd
+    put /opt/data/data*.txt 1,2     # wildcards work
+    put /opt/data/data2.txt worker* /opt/data
     '''
     if not cmdline or len(cmdline) < 2:
         logger.error("usage: put target src [dest]")
         return
 
-    target = cmdline.split()[0]
+    arr  = cmdline.split()
+    srcfile = arr[0]
+    target = arr[1]
+
+    destdir = None
+    if len(arr) > 2:
+        destdir = arr[2]
+
+    globbed = glob.iglob(srcfile)
+    if not list(globbed):
+        logger.error('local files not found : %s' % srcfile)
+        return
 
     target_nodes = cluster.running_nodes_from_target(target)
     if not target_nodes:
         return
 
-    args = cmdline[len(target):].strip()
-
-    arrargs = args.split()
-    
-    srcfile = None
-    destfile = None
-
-    if len(arrargs) > 0:
-        srcfile = arrargs[0]
-
-    if len(arrargs) > 1:
-        destfile = arrargs[1]
-
     for node in target_nodes:
-        for fname in glob.iglob(srcfile): 
-            cluster.lineterm.put(cluster.cloud.keyfile, node, fname, destfile)
+        globbed = glob.iglob(srcfile)
+        for fname in globbed: 
+            cluster.lineterm.put(node.login_rule.get('keyfile'), node, fname, destdir)
 
 
 def get(cmdline, cluster, logger):
@@ -63,11 +62,11 @@ def get(cmdline, cluster, logger):
     get tgt remotefile [localdir] - download remotefile from a set of nodes to [localdir] or cwd as remotefile.nodename
 
     Notes:
-    remotefile can be a wildcard 
-    
+    remotefile cannot be a wildcard
+
     Example:
-    get worker* /opt/output/*.txt        # download to cwd
-    get worker* /opt/output/*.txt /tmp   # download to /tmp
+    get worker* /opt/output/data1.txt    # download to cwd
+    get worker* /opt/output/data1.txt /tmp   # download to /tmp
     '''
 
     if not cmdline or len(cmdline) < 2:
@@ -95,6 +94,5 @@ def get(cmdline, cluster, logger):
 
     for node in target_nodes:
         cluster.lineterm.get(cluster.cloud.keyfile, node, remotefile, localdir)
-
 
 

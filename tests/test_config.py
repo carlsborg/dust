@@ -20,7 +20,7 @@ class TestConfig(unittest.TestCase):
         logging.getLogger('dustcluster.config').setLevel(logging.DEBUG)
         DustConfig.dust_dir = self.testdirs
 
-    @pytest.mark.skip(reason="need to mock user input")
+    @unittest.skip("port to v0.2")
     def test_first_use(self):
 
         if os.path.exists(self.testdirs) and self.testdirs.startswith('/tmp'):
@@ -28,7 +28,7 @@ class TestConfig(unittest.TestCase):
 
         config = DustConfig()
 
-    @pytest.mark.skip(reason="need to mock user input")
+    @unittest.skip("port to v0.2")
     def test_second_use(self):
 
         config = DustConfig()

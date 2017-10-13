@@ -124,27 +124,31 @@ class TestCommandEngine(unittest.TestCase):
         self.engine.handle_command('loglevel', 'debug')
         self.engine.handle_command('cluster', 'list')
 
+    @unittest.skip("port to v0.2")
     def test_match_nodes_to_cluster_config(self, mock_ec2_conn, mock_engine):
 
         target_nodes = self.engine.resolve_target_nodes(op='show', target_node_name="")
         self.assertEqual( len(target_nodes), 6 )
 
+    @unittest.skip("port to v0.2")
     def test_filter_by_name(self, mock_ec2_conn, mock_engine):
 
         target_nodes = self.engine.resolve_target_nodes(op='show', target_node_name="worker*")
         self.assertEqual( len(target_nodes), 2 )
 
+    @unittest.skip("port to v0.2")
     def test_filter_by_property(self, mock_ec2_conn, mock_engine):
 
         target_nodes = self.engine.resolve_target_nodes(op='show', target_node_name="ip=1.2.*")
         self.assertEqual( len(target_nodes), 3)
 
-
+    @unittest.skip("port to v0.2")
     def test_filter_by_property(self, mock_ec2_conn, mock_engine):
 
         target_nodes = self.engine.resolve_target_nodes(op='show', target_node_name="tags=*stack-name:nano1")
         self.assertEqual( len(target_nodes), 3)
 
+    @unittest.skip("port to v0.2")
     def test_node_op_stop(self, mock_ec2_conn, mock_engine):
 
         self.engine.handle_command('stop', 'worker*')

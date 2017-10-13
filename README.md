@@ -14,12 +14,25 @@ See setup.py for dependencies.
 
 [![Build Status](https://travis-ci.org/carlsborg/dust.svg?branch=master)](https://travis-ci.org/carlsborg/dust) [![PyPI version](https://badge.fury.io/py/dustcluster.svg)](https://badge.fury.io/py/dustcluster)
 
+### Table Of Contents
+* [Rationale](#rationale)
+* [Summary of Features](#summary-of-features)
+    * [Parallel AWS node operations](#parallel-aws-node-operations-(as-an-ec2-web-console-replacement))
+    * [Parallel ssh operations](#parallel-ssh-operations)
+    * [Cluster-aware ssh and node operations](#cluster-aware-ssh-and-node-operations)
+    * [Spin up a new compute cluster](#spin-up-a-new-compute-cluster)
+    * [Regions](#regions)
+    * [Run commands on localhost](#run-commands-on-localhost)
+* [More on Filter expressions](#more-on-filter-expressions)
+* [Configure ssh Logins](#configure-ssh-logins)
+* [Writing plugin commands](#writing-plugin-commands)
+
 
 ### Rationale
 
 DustCluster lets you perform cluster-wide stateful ssh and node operations on AWS ec2 instances using powerful filtering and search; and also bring up some pre-configured clusters on EC2.
 
-This can be useful for developing, prototyping, and one-off configurations of (usually ephemeral) EC2 clusters. Such as when developing/debugging custom data engineering stacks and distributed systems.
+This can be useful for developing, prototyping, and one-off configurations of (usually ephemeral) EC2 clusters. Such as when developing/testing custom data engineering stacks and distributed systems.
 
 ### Summary of Features
 
@@ -50,9 +63,11 @@ This can be useful for developing, prototyping, and one-off configurations of (u
   ``` 
   $show searches all ec2 attributes and tags
 
-  show mongo          # matches tag apps=mongo,redi
+  show mongo          # matches tag app=mongodb
   show running        # matches state=running attribute
   show 192.168.0.15   # matches public_ip_address, private_ip_address etc
+  show 0.15           # same as above, partial matches work
+  show run
   ```
 
 * tag/untag nodes
@@ -62,6 +77,10 @@ This can be useful for developing, prototyping, and one-off configurations of (u
   tag 3,4 stack=spark1
   ```
 
+* refresh cache 
+  ```
+  refresh
+  ```
 
 > **Note:** Filter expressions can contain index numbers, node names, or all EC2 instance attributes from show -vv .e.g. image=ami-123145. More on [filter expressions](#more-on-filter-expressions) below.
 
@@ -110,7 +129,7 @@ You need to [configure logins](#configure-ssh-logins) first.
   [ec2-user@ip-172-31-44-125 ~]$ vim /etc/resolv.conf
   ```
 
-* copy files
+* secury copy files
   ```
   put [filter_exp] filepath remote_dir
   get [filter_exp] filepath local_dir
@@ -125,7 +144,7 @@ When you are working with a 3 node cluster but you have 25 ec2 nodes...
 
 * use a working set
   ```
-  use [clustername | filter_exp]
+  use [clustername | *]
 
   use spark1
   show              # shows cluster nodes only
@@ -140,10 +159,23 @@ You specify cluster membership in the [login configuration](#configure-ssh-login
   use *
   ```
 
+
+##### Spin up a new compute cluster
+
+* Create a N node compute cluster with 10 GBps interconnect with in a placement group in the default VPC, with keys downloaded and security groups configured. More details here.
+```
+  cluster new           - asks for node count and creates a cluster spec   
+
+  cluster create base1  - converts the spec to a CloudFormation template and instantiates it
+
+  cluster status base1  - shows the Cloudformation status
+
+  cluster delete base1  - terminates the cluster nodes  
+```
+
+
 ##### Regions
   ```
-  regions           # list all regions
-  regions -closest  # find closest region in ping time
   use us-east-1     # switch to region
   ```
 
@@ -165,6 +197,15 @@ If dustcluster doesn't recognize a command, it drops it to the calling shell.
   [eu-west-1]$ vim /home/alice/topsecret.txt    # runs vim locally
 
   ```
+
+##### Command History
+
+* Reverse search (ctrl-R) to retrieve old commands
+  ```
+  (reverse-i-search)`':@1,3,5,7 grep -c ERROR /var/logs/applogs/app.log
+
+  up/down arrow to navigate 
+  ``` 
 
 ### More on Filter expressions 
 
@@ -270,11 +311,11 @@ ii) by manually editing the login rules file.
 
 Write commands to an interface and drop them into dustcluster...
 
-i) You want a command that list all your instances in all regions.
+i) Write a plugin command that list all your instances in all regions.
 
 TBD
 
-ii)You want a command that runs a set of ssh commands on a cluster 
+ii) Write a plugin command that runs a set of ssh commands on a cluster 
 
 TBD
 

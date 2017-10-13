@@ -44,7 +44,7 @@ if os.environ.get('COLORTERM') or 'color' in os.environ.get('TERM'):
 class Console(Cmd):
     ''' command line tool to control a cloud cluster '''
 
-    dustintro  = "Dust cluster shell, version %s. Type ? for help." % __version__
+    dustintro  = "Dust cluster shell, version %s. Type %s?%s for help. Type %swhatsnew%s for What's New." % (__version__, colorama.Fore.GREEN, colorama.Style.RESET_ALL, colorama.Fore.GREEN, colorama.Style.RESET_ALL)
 
     def __init__(self):
 
@@ -107,7 +107,9 @@ class Console(Cmd):
         if confregion != cloud_region:
             self.config.user_data['region'] = cloud_region 
             self.config.write_user_data()
-
+            
+        print
+        
     def emptyline(self):
         pass
 
@@ -207,7 +209,7 @@ class Console(Cmd):
         logger.info( 'Exiting dust console. Find updates, file bugs at http://github.com/carlsborg/dust.')
         logger.info( '%sThis is an early beta release. Consider updating with $pip install dustcluster --upgrade"%s.' %
                      (colorama.Fore.GREEN, colorama.Style.RESET_ALL))
-
+        
         self.cluster.logout()
         self.exit_flag = True
         return True

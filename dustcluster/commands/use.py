@@ -38,16 +38,17 @@ def use(cmdline, cluster, logger):
 
     args = cmdline.split()
 
-    usage = "use [region] | [cluster_name] | *"
-    if not args:
-        logger.error(usage)
-        return
-
     login_rules = cluster.config.get_login_rules()
     clusters = set([ rule.get('member-of') for rule in login_rules ])
 
+    usage = "use [region] | [cluster_name] | *"
+    if not args:
+        logger.error(usage)
+        logger.info("Available clusters: " + ",".join(clusters))
+        return
+
     try:
-        if args[0] in clusters:
+        if args[0] in clusters or args[0] == '*':
             use_cluster(args, cluster, logger)
         else:
             use_region(args, cluster, logger)

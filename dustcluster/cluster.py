@@ -159,19 +159,19 @@ class ClusterCommandEngine(object):
 
         if cluster_name.strip() == '*':
             self.cur_cluster = ""
-            return     
+        else:    
+            login_rules = self.config.get_login_rules()
+            clusters = set([ rule.get('member-of') for rule in login_rules ])
 
-        login_rules = self.config.get_login_rules()
-        clusters = set([ rule.get('member-of') for rule in login_rules ])
+            if cluster_name not in clusters:
+                logger.error("%s is not a recognized cluster." % cluster_name)
+                self.show_clusters()
+                return
 
-        if cluster_name not in clusters:
-            logger.error("%s is not a recognized cluster." % cluster_name)
-            self.show_clusters()
-            return
+            self.cur_cluster = cluster_name
 
-        self.cur_cluster = cluster_name
-        
         cluster_nodes = self.resolve_target_nodes()
+        self.show(cluster_nodes)
 
     def init_cloud_provider(self, cloud_data):
 
@@ -481,7 +481,7 @@ class ClusterCommandEngine(object):
                     node.login_rule = rule
                     node.cluster = rule.get('member-of')
 
-    def resolve_target_nodes(self, search=False, target_node_name=None):
+    def resolve_target_nodes(self, search=False, target_node_name=""):
         '''
             given a target string, filter nodes from cloud provider and create a list of target nodes to operate on
             filter by all clusters
@@ -491,17 +491,17 @@ class ClusterCommandEngine(object):
 
         cluster_nodes = self._get_nodes_with_login_data()
 
-        if not cluster_nodes:
-            return []
-
         # working set
         if self.cur_cluster:
-            cluster_nodes = filter(lambda x: x.login_rule.get('member-of')==self.cur_cluster, cluster_nodes)
+            cluster_nodes = filter(lambda x: (x.login_rule.get('member-of') == self.cur_cluster), cluster_nodes)
+
+        if not cluster_nodes:
+            return []
 
         # filter by target string
         # target string can be a comma separated list of filter expressions
 
-        if target_node_name == '*':
+        if target_node_name == '*' or not target_node_name:
             return cluster_nodes
 
         filtered_nodes = set()
