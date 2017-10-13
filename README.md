@@ -13,7 +13,12 @@ Status:
 
 **Quickstart:**
 
+on a python2.7 default system:
 bash$ sudo pip install dustcluster
+
+on a python 3 default system:
+bash$ sudo pip2.7 install dustcluster
+
 
 bash$ dust
 
