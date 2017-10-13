@@ -16,9 +16,10 @@ Status:
 bash$ sudo pip install dustcluster
 
 bash$ dust
+
 [eu-west-1] show
 
-![dustcluster](https://i.imgur.com/TJ9N1ek.png)
+![dustcluster](https://i.imgur.com/zOIloLD.png)
 
 * [Table Of Contents](#table-of-contents)
 * [Rationale](#rationale)
