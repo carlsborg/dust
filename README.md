@@ -2,27 +2,35 @@
 dustcluster
 ===========
 
-DustCluster v0.2.0 is an AWS command line interface in an REPL shell with cluster-aware ssh and EC2 node operations.
-
+DustCluster v0.2.0 is an AWS command line interface in an REPL shell with cluster-aware ssh and EC2 node operations, with plugin commands to bring up some pre-configured clusters on EC2.
 
 Status:
-* Tested/known to work on Linux and OSX only (Debian, Ubuntu, CentOS, OSX Yosemite)
-* Developed/tested with Python 2.7
-* Currently, this is alpha/work in progress
-
-See setup.py for dependencies.
+* Linux and OSX only
+* Alpha/work in progress
+* Python 2.7
 
 [![Build Status](https://travis-ci.org/carlsborg/dust.svg?branch=master)](https://travis-ci.org/carlsborg/dust) [![PyPI version](https://badge.fury.io/py/dustcluster.svg)](https://badge.fury.io/py/dustcluster)
 
-### Table Of Contents
+**Quickstart:**
+
+bash$ sudo pip install dustcluster
+
+bash$ dust
+[eu-west-1] show
+
+![dustcluster](https://i.imgur.com/TJ9N1ek.png)
+
+* [Table Of Contents](#table-of-contents)
 * [Rationale](#rationale)
 * [Summary of Features](#summary-of-features)
+    * [Drop into a REPL shell](#drop-into-a-repl-shell)
     * [Parallel AWS node operations](#parallel-aws-node-operations-(as-an-ec2-web-console-replacement))
     * [Parallel ssh operations](#parallel-ssh-operations)
     * [Cluster-aware ssh and node operations](#cluster-aware-ssh-and-node-operations)
     * [Spin up a new compute cluster](#spin-up-a-new-compute-cluster)
     * [Regions](#regions)
     * [Run commands on localhost](#run-commands-on-localhost)
+    * [Command History](#command-history)
 * [More on Filter expressions](#more-on-filter-expressions)
 * [Configure ssh Logins](#configure-ssh-logins)
 * [Writing plugin commands](#writing-plugin-commands)
@@ -30,19 +38,9 @@ See setup.py for dependencies.
 
 ### Rationale
 
-DustCluster lets you perform cluster-wide stateful ssh and node operations on AWS ec2 instances using powerful filtering and search; and also bring up some pre-configured clusters on EC2.
-
 This can be useful for developing, prototyping, and one-off configurations of (usually ephemeral) EC2 clusters. Such as when developing/testing custom data engineering stacks and distributed systems.
 
 ### Summary of Features
-
-##### Drop into a REPL shell
-
-bash$ dust 
-
-
-![dustcluster](https://i.imgur.com/TJ9N1ek.png)
-
 
 ##### Parallel AWS node operations (As an EC2 web console replacement)
    
@@ -137,10 +135,10 @@ You need to [configure logins](#configure-ssh-logins) first.
   [ec2-user@ip-172-31-44-125 ~]$ vim /etc/resolv.conf
   ```
 
-* secury copy files
+* secure copy files
   ```
-  put [filter_exp] filepath remote_dir
-  get [filter_exp] filepath local_dir
+  put [filter_exp] localfile* remote_dir
+  get [filter_exp] remotefile local_dir
 
   put 1,3 /home/alice/data*.csv /home/ec2-user
   get 1,3 /home/ec2-user/data3.csv .
@@ -225,16 +223,13 @@ Filter expression can be:
 
 **A node index**
 
-> dust$ show -v 1,2,3
+> dust$ stop 1,2,3
 
 > dust$ @1,2,3 service restart nginx
 
-> dust$ @[1-5] cat /etc/resolv.conf
-
-
 **By node name**
 
-Name comes from Instance tage with Key=Name
+Name comes from Instance tags with Key=Name
 
 > dust$ stop worker\*
 
@@ -250,18 +245,17 @@ Name comes from Instance tage with Key=Name
 
 > dust$ start state=stop*       # filters can have wildcards
 
-> dust$ show ip=54.12.*
+> dust$ @ip=54.12.* uptime
 
-> dust$ show tags=owner:devops
+> dust$ @tags=owner:devops uptime
 
 > dust$ stop tags=env:*       # tags can have wildcards too
 
 > dust$ show -v launch_time=2016-04-03*
 
-> dust$ show -v launch_time=2016-04-03*
+"show" takes a search term as well so this is equivalent:
 
-type show -vv [target] to see all the available properties you can filter on.
-All filter expressions work for targeting ssh as well. e.g.@state=running free -m 
+> dust$ show -v 2016-04-03
 
 **By cluster name**
 

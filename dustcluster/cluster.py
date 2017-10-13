@@ -329,7 +329,7 @@ class ClusterCommandEngine(object):
                         print( "unassigned:" )
                         prev_cluster_name = None
 
-                print colorama.Style.NORMAL, colorama.Fore.CYAN, "    ", " ".join(header_fmt) % tuple(node.disp_data())
+                print colorama.Style.NORMAL, colorama.Fore.CYAN, " ", " ".join(header_fmt) % tuple(node.disp_data())
                 ext_data = []
                 if extended == 1:
                     ext_data = node.extended_data().items()
