@@ -110,7 +110,7 @@ You need to [configure logins](#configure-ssh-logins) first.
   @1,3,4 uptime               # nodes with indexes 1,3 and 4 
   @worker* uptime             # node names matching worker*
   @image=ami-1234 uptime      # EC2 attribute
-  @tags:key=value uptime      # by tags
+  @tags=key:value uptime      # by tags
   ```
 
 * run interactive commands
