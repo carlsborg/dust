@@ -29,8 +29,7 @@ bash$ dust
 * [Table Of Contents](#table-of-contents)
 * [Rationale](#rationale)
 * [Summary of Features](#summary-of-features)
-    * [Drop into a REPL shell](#drop-into-a-repl-shell)
-    * [Parallel AWS node operations](#parallel-aws-node-operations-(as-an-ec2-web-console-replacement))
+    * [As an EC2 web console replacement](#as-an-ec2-web-console-replacement)
     * [Parallel ssh operations](#parallel-ssh-operations)
     * [Cluster-aware ssh and node operations](#cluster-aware-ssh-and-node-operations)
     * [Spin up a new compute cluster](#spin-up-a-new-compute-cluster)
@@ -48,7 +47,7 @@ This can be useful for developing, prototyping, and one-off configurations of (u
 
 ### Summary of Features
 
-##### Parallel AWS node operations (As an EC2 web console replacement)
+##### As an EC2 web console replacement
    
  
 * start/stop/terminate
