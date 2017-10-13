@@ -15,7 +15,7 @@ Tested on: Debian 7, Python 2.7.3
 
 > sudo apt-get install python-dev
 
-> sudo pip install boto
+> sudo pip install boto3
 
 > sudo pip install paramiko
 

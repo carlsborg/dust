@@ -1,5 +1,6 @@
 paramiko
 pyyaml
+boto3>=1.4.7
 boto>=2.39.0
 troposphere>=1.5.0
 colorama>=0.2.5,<=0.3.3

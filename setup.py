@@ -16,6 +16,7 @@ import dustcluster
 required_packages = [
     'paramiko',
     'pyyaml',
+    'boto3>=1.4.7',
     'boto>=2.39.0',
     'troposphere>=1.5.0',
     'colorama>=0.2.5,<=0.3.3'
@@ -31,6 +32,7 @@ setup(
     license = "GPL Affero",
     packages=['dustcluster','dustcluster/commands'],
     scripts = ['bin/dust'],
+    python_requires='>=2.7,<3.0.0',
     classifiers=[
         'Development Status :: 4 - Beta',
         'Environment :: Console',
