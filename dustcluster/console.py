@@ -44,7 +44,7 @@ if os.environ.get('COLORTERM') or 'color' in os.environ.get('TERM'):
 class Console(Cmd):
     ''' command line tool to control a cloud cluster '''
 
-    dustintro  = "Dust cluster shell, version %s. Type %s?%s for help. Type %swhatsnew%s for What's New." % (__version__, colorama.Fore.GREEN, colorama.Style.RESET_ALL, colorama.Fore.GREEN, colorama.Style.RESET_ALL)
+    dustintro  = "Dust cluster shell, version %s. Type %s?%s for help." % (__version__, colorama.Fore.GREEN, colorama.Style.RESET_ALL)
 
     def __init__(self):
 
@@ -157,8 +157,6 @@ class Console(Cmd):
 
         print '\nType help [command] for detailed help on a command'
 
-        print '\nFor most commands, [target] can be a node name, regular expression, or filter expression'
-        print 'A node "name" in these commands is the Name tag in the cloud node metadata or in the cluster definition.'
         print '\n'
 
 

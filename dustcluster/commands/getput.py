@@ -59,7 +59,7 @@ def put(cmdline, cluster, logger):
 
 def get(cmdline, cluster, logger):
     '''
-    get tgt remotefile [localdir] - download remotefile from a set of nodes to [localdir] or cwd as remotefile.nodename
+    get tgt remotefile [localdir] - download remotefile from tgt nodes as remotefile.nodename
 
     Notes:
     remotefile cannot be a wildcard

@@ -60,13 +60,15 @@ def use(cmdline, cluster, logger):
 
 def assign(cmdline, cluster, logger):
     '''
-    assign - specify login rules and cluster membership for nodes
+    assign filter_exp - specify login rules and cluster membership for nodes
 
     Notes:
     This command writes login rules to ~/.dustcluster/login_rules.yaml.
     You can manually edit this file and setup login rules there.
 
     Example:
+    $assign Name=sim*
+    $assign tags=stack:web*
 
     $assign tags=key:value
     login-user: ec2-user
@@ -146,7 +148,7 @@ def assign(cmdline, cluster, logger):
 
     cluster.config.write_login_rules()
 
-    logger.info("Wrote login rule. Use $logins to view file")
+    logger.info("Wrote login rules to %s" % cluster.config.login_rules_file)
 
 def use_cluster(args, cluster, logger):
 

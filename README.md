@@ -36,6 +36,14 @@ This can be useful for developing, prototyping, and one-off configurations of (u
 
 ### Summary of Features
 
+##### Drop into a REPL shell
+
+bash$ dust 
+
+
+![dustcluster](https://i.imgur.com/TJ9N1ek.png)
+
+
 ##### Parallel AWS node operations (As an EC2 web console replacement)
    
  

@@ -16,9 +16,18 @@ def usage(logger):
 
 def cluster(cmdline, cluster, logger):
     '''
-    cluster [create filename] | [status clustername] | [delete clustername] | list - create, delete or see cluster status
+    cluster list|new|create|status|delete - list, create, delete or print cluster status
+
+    Commands:
+
+    cluster new
+    cluster create clustername
+    cluster status clustername
+    cluster delete clustername
+    cluster list
 
     Examples:
+
     cluster new                 # create a new cluster spec
     cluster create              # bring up a cluster using cloudformation 
     cluster status slurm
