@@ -524,7 +524,8 @@ class ClusterCommandEngine(object):
                 filtered_nodes.update(target_nodes)
 
         if search and not filtered_nodes:
-            filtered_nodes.update( self._search(cluster_nodes, target_node_name))
+            for search_term in target_node_name.split(","):
+                filtered_nodes.update( self._search(cluster_nodes, search_term))
 
         if not filtered_nodes:
             logger.info( "no nodes found that match filter %s" % (target_node_name) )
