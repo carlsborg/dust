@@ -512,6 +512,8 @@ class ClusterCommandEngine(object):
                     str_err = "Filter format error. Should be key=value for node properties or tags=key:value for tags. Use quotes if needed."
                     raise Exception("%s%s%s" %(colorama.Fore.RED, str_err, colorama.Style.RESET_ALL))
                 filterkey, filterval  = parts
+            elif filter_exp in self.clusters:
+                filterkey, filterval = 'cluster', filter_exp    
             else:
                 filterkey, filterval = 'name', filter_exp
                 if self.is_numeric(filter_exp):
