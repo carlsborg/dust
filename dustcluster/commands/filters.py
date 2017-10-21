@@ -16,32 +16,31 @@ import colorama
 ''' dummy command to handle $help filters'''
 
 help_str = '''
-Most commands take a target. e.g. show -v [target]
-Here, [target] is a comma separated list of filter expressions.
+Most commands take a filter. e.g. tag filter key=val
+Here, "filter" is a comma separated list of filter expressions.
 
 Filter expression is evaluated as (in order of precedence):
 
-**A node index**
+**A node index from "show"**
     dust$ stop 1,2,3
     dust$ @1,2,3 service restart nginx
 
 **A cluster name**
     dust$ show -v pyspark1      # all nodes in cluster pyspark1
     dust$ stop slurm1           # all nodes in cluster slurm1
+    dust$ @slurm1 uptime        
 
     Note: see $help assign for assigning nodes to clusters
 
 **A node name**
-
-    Name comes from Instance tags with Key=Name.e.g { name : mysql }
-
-    dust$ stop worker\*
-    dust$ start wo\*
+    Name comes from Instance tags with Key=Name.e.g { Name : mysql }
+    dust$ stop worker*         # names can have wildcards
+    dust$ start wo*
     dust$ terminate worker[0-2]
-    dust$ @worker\* vmstat
+    dust$ @worker* vmstat
 
 **attr=value EC2 attribute or tags**
-    dust$ show state=stopped
+    dust$ start state=stopped
     dust$ start state=stop*       # filters can have wildcards
     dust$ @ip=54.12.* uptime
     dust$ @tags=owner:devops uptime

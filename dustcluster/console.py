@@ -125,6 +125,8 @@ class Console(Cmd):
             if args in commands:
                 docstr, _ = commands.get(args)
                 print colorama.Fore.GREEN, docstr, colorama.Style.RESET_ALL
+                print "    Type filters for help with filter expressions.\n" 
+
                 return
             return Cmd.do_help(self, args)
 
@@ -151,7 +153,7 @@ class Console(Cmd):
             modcommands[mod].append( (cmd, docstr) )
 
         for mod, cmds in modcommands.iteritems():
-            print "\n== From %s:" % mod.__name__
+            print "\n%s== From %s:%s" % (colorama.Style.DIM, mod.__name__, colorama.Style.RESET_ALL)
             for (cmd, docstr) in cmds: 
                 self._print_cmd_help(docstr, cmd)
 
@@ -169,9 +171,11 @@ class Console(Cmd):
                 cmd, doc = helpstr[:pos].strip(), helpstr[pos+1:].strip()
             else:
                 doc = ""
-            print "%-40s%s%s%s" % (cmd.strip(), colorama.Fore.GREEN, doc.strip(), colorama.Style.RESET_ALL)
+            parts = cmd.strip().split()
+            cmdname= "%s %s%s%s" % (parts[0], colorama.Style.DIM, " ".join(parts[1:]), colorama.Style.RESET_ALL)
+            print "%-50s%s%s%s" % (cmdname, colorama.Fore.GREEN, doc.strip(), colorama.Style.RESET_ALL)
         else:
-            print "%-40s" % cmd.strip()
+            print "%-50s" % cmd.strip()
 
 
     def default(self, line):

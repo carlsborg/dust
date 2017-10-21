@@ -25,20 +25,17 @@ commands  = ['atssh']
 
 def atssh(cmdline, cluster, logger):
     '''
-    @[target] [cmd]     - ssh command or ssh shell.  see help atssh.
+    @[filter] [cmd]     - ssh command or ssh shell.  see help atssh.
 
-    @[target] [cmd]     - execute shell command cmd on [target]
-    @ [cmd]             - execute shell command cmd on all nodes
-    @nodename           - enter raw shell mode on a single node 
+    @filter cmd         - execute cmd on target nodes
+    @ cmd               - execute on all running nodes
+    @filter             - @filter with no command drops to a shell
 
     Arguments:
-    shell cmd   --- Shell command to invoke on the nodes via ssh 
-    target      --- A node name or filter expression (see help filters) 
-                    Node names and filter values can be wildcards
-    nodename    --  A single node name
+    cmd         --- Shell command to invoke on the nodes via ssh
+    filter      --- A node name or filter expression
 
-    
-    @[target] [cmd] and @[nodename] use the same interactive shell.
+    @[filter] [cmd] and @[nodename] use the same interactive shell.
 
     Example:
     @worker* restart service xyz

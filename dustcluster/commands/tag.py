@@ -5,7 +5,7 @@ commands = ['tag', 'untag']
 
 def tag(cmdline, cluster, logger):
     '''
-    tag tgt tagkey=tagvalue   - add tag to target node
+    tag filter key=value   - add tag to target nodes
 
     Notes:
     tag an ec2 node with key=value
@@ -14,7 +14,7 @@ def tag(cmdline, cluster, logger):
     tag worker* env=dev    # add tag env=dev to nodes named worker* 
 
     Multiple tags works.
-    tag worker* tag1=val1,tag2=val2,tag3=val3 - add tags tag1,tag2,tag3 on target nodes    
+    tag worker* tag1=val1,tag2=val2,tag3=val3 - add tags tag1,tag2,tag3 on target nodes
     '''
 
     try:
@@ -56,13 +56,13 @@ def tag(cmdline, cluster, logger):
 
 def untag(cmdline, cluster, logger):
     '''
-    untag tgt tagkey   - remove a tag from a target node
+    untag filter key=value   - remove a tag from a target node
 
     Notes:
-    untag an ec2 node with tag key
+    untag an ec2 node with tag key and value 
 
     Examples:
-    untag worker* env    # remove tag env from nodes named worker*
+    untag worker* env=dev           # remove tag env from nodes named worker*
     untag state=running env=prod
     '''
 
@@ -71,7 +71,7 @@ def untag(cmdline, cluster, logger):
         args = cmdline.split()
 
         if len(args) < 2:
-            logger.error("usage: untag target tag")
+            logger.error("usage: untag filter-exp tag=value")
             return
 
         target = args[0]

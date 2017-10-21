@@ -20,7 +20,7 @@ commands = ['put', 'get']
 
 def put(cmdline, cluster, logger):
     '''
-    put localfiles target [target dir] - upload local files
+    put localfiles filter [target dir] - upload local files
 
     Notes:
     localfiles can have wildcards
@@ -31,7 +31,7 @@ def put(cmdline, cluster, logger):
     put /opt/data/data2.txt worker* /opt/data
     '''
     if not cmdline or len(cmdline) < 2:
-        logger.error("usage: put target src [dest]")
+        logger.error("usage: put src filter [dest]")
         return
 
     arr  = cmdline.split()
@@ -59,7 +59,7 @@ def put(cmdline, cluster, logger):
 
 def get(cmdline, cluster, logger):
     '''
-    get tgt remotefile [localdir] - download remotefile from tgt nodes as remotefile.nodename
+    get filter remotefile [localdir] - download remotefile from tgt nodes as remotefile.nodename
 
     Notes:
     remotefile cannot be a wildcard
@@ -70,7 +70,7 @@ def get(cmdline, cluster, logger):
     '''
 
     if not cmdline or len(cmdline) < 2:
-        logger.error("usage: get target remotefile [localdir]")
+        logger.error("usage: get filter remotefile [localdir]")
         return
 
     target = cmdline.split()[0]

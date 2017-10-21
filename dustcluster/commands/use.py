@@ -60,7 +60,7 @@ def use(cmdline, cluster, logger):
 
 def assign(cmdline, cluster, logger):
     '''
-    assign filter_exp - specify login rules and cluster membership for nodes
+    assign filter_exp  - specify login rules and cluster membership for nodes
 
     Notes:
     This command writes login rules to ~/.dustcluster/login_rules.yaml.

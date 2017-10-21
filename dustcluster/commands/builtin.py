@@ -20,10 +20,11 @@ commands  = ['show', 'refresh', 'start', 'stop', 'terminate']
 
 def show(cmdline, cluster, logger):
     '''
-    show  [-vv] [filter_exp | search_term]  - Show all nodes or filtered nodes
+    show  [-vv] [filter | search_term]  - show all nodes or filtered nodes
 
-    List node data from in memory cache. If filter_exp does not match a node index,
-    node name, or EC2 attribute key value, then search all attributes and tags.
+    List node data from in memory cache. If filter does not match a node index,
+    cluster name, node name, or EC2 attribute key=value expression then search
+    all attributes and tags.
 
     Use $refresh to update cache.  
     Shows only nodes selected by the use command, if it was invoked earlier.
@@ -38,6 +39,7 @@ def show(cmdline, cluster, logger):
     show 192.168.0.1             # no filter_exp match, use as search term 
     show state=running           # filter_exp matches 
     show running                 # search term matches
+
     '''
 
     args = cmdline.split()
@@ -84,11 +86,11 @@ def refresh(cmdline, cluster, logger):
 
 def start(cmdline, cluster, logger):
     '''   
-    start [target]   - Start nodes or restart stopped nodes
+    start filter   - start nodes or restart stopped nodes
 
     Arguments:
     none    --- Start all nodes defined in the cluster, idempotently
-    target  --- A node name or filter expression (see help filters) 
+    filter  --- A node name or filter expression (see help filters) 
                 Node names and filter values can be regular expressions.
 
     Example:
@@ -100,7 +102,7 @@ def start(cmdline, cluster, logger):
     '''
 
     if not cmdline.strip():
-        logger.error("start [target]   - Start nodes or restart stopped nodes")
+        logger.error("start filter  - Restart stopped nodes")
         return
 
     try:
@@ -134,12 +136,11 @@ def start(cmdline, cluster, logger):
 
 def stop(cmdline, cluster, logger):
     '''
-    stop [target]   - Stop nodes
+    stop  filter   - stop nodes
 
     Arguments:
     none    --- Stop all nodes defined in the cluster, idempotently
-    target  --- A node name or filter expression (see help filters) 
-                Node names and filter values can be regular expressions.
+    filter  --- A node name or filter expression 
 
     Example:
     stop failover1
@@ -149,7 +150,7 @@ def stop(cmdline, cluster, logger):
     '''
 
     if not cmdline.strip():
-        logger.error("stop [target]   - Stop nodes")
+        logger.error("stop filter   - Stop nodes")
         return
     
     operation(logger, cluster, 'stop', cmdline, confirm=True)
@@ -157,11 +158,11 @@ def stop(cmdline, cluster, logger):
 
 def terminate(cmdline, cluster, logger):
     '''
-    terminate [target]  - Terminate nodes 
+    terminate filter  - terminate nodes 
 
     Arguments:
     none    --- Terminate all nodes defined in the cluster, idempotently
-    target  --- A node name or filter expression (see help filters) 
+    filter  --- A node name or filter expression (see help filters) 
                 Node names and filter values can be regular expressions.
 
     Example:
@@ -172,7 +173,7 @@ def terminate(cmdline, cluster, logger):
     '''
 
     if not cmdline.strip():
-        logger.error("terminate [target]  - Terminate nodes")
+        logger.error("terminate filter  - Terminate nodes")
         return
 
     operation(logger, cluster, 'terminate', cmdline, confirm=True)
