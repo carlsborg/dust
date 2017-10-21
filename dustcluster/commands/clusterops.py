@@ -515,4 +515,3 @@ def cluster_status(args, cluster, logger):
     logger.info('%sUse $refresh to update node state%s' % (colorama.Fore.GREEN, colorama.Style.RESET_ALL))
 
     logger.info('ok')
-

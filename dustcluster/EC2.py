@@ -298,7 +298,7 @@ class EC2Node(object):
     @property
     def groups(self):
         if self._vm:
-            return [ grp.get('GroupName') for grp in self._vm.security_groups ] 
+            return [ "(name=%s id=%s) " % ( grp.get('GroupName'),grp.get('GroupId') ) for grp in self._vm.security_groups ] 
         return []
 
     @property

@@ -1,6 +1,6 @@
 import pprint
 
-commands = ['tag', 'untag']
+commands = ['tag', 'untag', 'openport']
 
 
 def tag(cmdline, cluster, logger):
@@ -119,4 +119,52 @@ def get_tag_param(taglist):
             tagparam.append( {'Key': tagkey, 'Value': tagval } )
 
         return tagparam
+
+
+def openport(cmdline, cluster, logger):
+    '''
+    openport secgroup_id [port  cidr_range]   - list or open TCP ingress port
+
+    secgroup_ip: security group id. (see show -vv under security_groups)
+    port: ingress port to open
+    cidr_range: cidr range or 0.0.0.0/0 (all) if not given
+
+    Examples:                   
+    openport sg-e12345                         # list ingress rules        
+    openport sg-e12345 8080                    # open ingress tcp port 8080 on nodes
+    openport sg-e12345 8080 192.168.3.0/24     # open ingress tcp port 8080 from cidr range 
+    '''
+
+    try:
+
+        args = cmdline.split()
+
+        if len(args) < 1:
+            logger.error("openport sec_grp [port] [cidr range]")
+            return
+
+        grp_id  = args[0].strip()
+        res = cluster.cloud.conn()
+        grp = res.SecurityGroup(grp_id)
+
+        if len(args) < 2:
+            show_ingress_rules(grp)
+            return
+
+        port    = args[1].strip()
+        range   = args[2].strip() if len(args) > 2 else "0.0.0.0/0"
+
+        grp.authorize_ingress(CidrIp=range, FromPort=int(port), ToPort=int(port), IpProtocol='tcp')
+
+    except Exception, e:
+        logger.exception('Error: %s' % e)
+        return
+
+    logger.info( 'ok' )
+
+def show_ingress_rules(grp):
+        grp.reload()
+        for perm in grp.ip_permissions:
+            pprint.pprint(perm)
+
 
