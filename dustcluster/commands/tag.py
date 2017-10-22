@@ -2,7 +2,6 @@ import pprint
 
 commands = ['tag', 'untag', 'openport']
 
-
 def tag(cmdline, cluster, logger):
     '''
     tag filter key=value   - add tag to target nodes
@@ -131,7 +130,7 @@ def openport(cmdline, cluster, logger):
 
     Examples:                   
     openport sg-e12345                         # list ingress rules        
-    openport sg-e12345 8080                    # open ingress tcp port 8080 on nodes
+    openport sg-e12345 8080                    # open ingress tcp port 8080 from all ips
     openport sg-e12345 8080 192.168.3.0/24     # open ingress tcp port 8080 from cidr range 
     '''
 

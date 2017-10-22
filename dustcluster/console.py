@@ -33,6 +33,7 @@ from dustcluster.cluster import ClusterCommandEngine
 from dustcluster.config import DustConfig
 
 import atexit
+import shlex
 
 from dustcluster import util
 logger = util.setup_logger( __name__ )
@@ -115,79 +116,22 @@ class Console(Cmd):
 
     def do_help(self, args):
         '''
-        help [cmd] - Show help on command cmd. 
         Modified from base class.
         '''
-
-        commands = self.cluster.get_commands()
-
-        if args:
-            if args in commands:
-                docstr, _ = commands.get(args)
-                print colorama.Fore.GREEN, docstr, colorama.Style.RESET_ALL
-                print "    Type filters for help with filter expressions.\n" 
-
-                return
-            return Cmd.do_help(self, args)
-
-        print self.dustintro
-        print "\nAvailable commands:\n"
-
-        # generate help summary from docstrings
-
-        names = dir(self.__class__)
-        prevname = ""
-        for name in names:
-            if name[:3] == 'do_':
-                if name == prevname:
-                    continue
-                cmd = name[3:]
-                docstr = ""
-                if getattr(self, name):
-                    docstr = getattr(self, name).__doc__
-                self._print_cmd_help(docstr, cmd)
-
-        # show help from drop-in commands
-        modcommands = defaultdict(list)
-        for cmd, (docstr, mod) in commands.items():
-            modcommands[mod].append( (cmd, docstr) )
-
-        for mod, cmds in modcommands.iteritems():
-            print "\n%s== From %s:%s" % (colorama.Style.DIM, mod.__name__, colorama.Style.RESET_ALL)
-            for (cmd, docstr) in cmds: 
-                self._print_cmd_help(docstr, cmd)
-
-        print '\nType help [command] for detailed help on a command'
-
-        print '\n'
-
-
-    def _print_cmd_help(self, docstr, cmd):
-        ''' format and print the cmd help string '''
-        if docstr and '\n' in docstr:
-            helpstr = docstr.split('\n')[1]
-            if '-' in helpstr:
-                pos = helpstr.rfind('-')
-                cmd, doc = helpstr[:pos].strip(), helpstr[pos+1:].strip()
-            else:
-                doc = ""
-            parts = cmd.strip().split()
-            cmdname= "%s %s%s%s" % (parts[0], colorama.Style.DIM, " ".join(parts[1:]), colorama.Style.RESET_ALL)
-            print "%-50s%s%s%s" % (cmdname, colorama.Fore.GREEN, doc.strip(), colorama.Style.RESET_ALL)
-        else:
-            print "%-50s" % cmd.strip()
-
+        self.default("help " + args)
 
     def default(self, line):
 
-        # handle a cluster command
         cmd, arg, line = self.parseline(line)
-        if not self.cluster.handle_command(cmd, arg):
+        ret = self.cluster.handle_command(cmd, arg)
+
+        if not ret:
             # not handled? try system shell
             logger.info( 'dustcluster: [%s] unrecognized, trying system shell...\n' % line )
             os.system(line)
 
         return
+
 
     def parseline(self, line):
 
