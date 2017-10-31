@@ -67,7 +67,8 @@ def get_closest_region(cluster, logger):
     if region:
         return region
 
-    region = EC2Config.find_closest_region(logger)
+    creds = cluster.config.get_credentials()
+    region = EC2Config.find_closest_region(logger, creds.get('aws_access_key_id', 'aws_secret_access_key'))
     user_data['closest_region'] = region
     cluster.config.write_userdata()
 

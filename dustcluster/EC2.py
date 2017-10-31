@@ -464,13 +464,14 @@ class EC2Config(object):
         return int(t2 - t1)
 
     @staticmethod
-    def find_closest_region(logger):
+    def find_closest_region(logger, aws_access_key_id, aws_secret_access_key):
 
-        connect_times = []
+        client = boto3.client('ec2', region_name='us-east-1', aws_access_key_id=aws_access_key_id,
+                                                aws_secret_access_key=aws_secret_access_key)
 
-        client = boto3.client('ec2')
         regions = client.describe_regions()
 
+        connect_times = []
         for regioninfo in regions.get('Regions'):
             ms = EC2Config.http_ping(regioninfo.get('Endpoint'))
             sms = "[timeout/erorr]" if ms == -1 else str(ms)
@@ -526,7 +527,7 @@ class EC2Config(object):
                     break
                 else:
                     logger.info("Finding nearest AWS region endpoint...")
-                    region = EC2Config.find_closest_region(logger)
+                    region = EC2Config.find_closest_region(logger, acc_key_id, acc_key)
                     confirm = raw_input("Accept %s?[y]" % region) or "y"
                     if confirm[0].lower() == "y":
                         user_data['closest_region'] = region
