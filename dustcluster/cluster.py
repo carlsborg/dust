@@ -20,6 +20,7 @@ import fnmatch
 import os
 import yaml
 import colorama
+import sys
 
 from copy import deepcopy
 
@@ -87,7 +88,6 @@ class ClusterCommandEngine(object):
         discover commands under dustcluster.commands relative to this module, and dynamically import command modules
         look for more paths inside ~/.dustcluster/user_commands
         '''
-
         start_time = time.time()
 
         cmds = walk_packages( commands.__path__, commands.__name__ + '.')
@@ -99,6 +99,9 @@ class ClusterCommandEngine(object):
         for cmdmod in cmdmods:
             newmod = __import__(cmdmod, fromlist=['commands'])
 
+            #sys.stdout.write("\rloading .. %-20s          " % cmdmod)
+            #sys.stdout.flush()
+
             for cmdname in newmod.commands:
                 cmdfunc =  getattr(newmod, cmdname, 'None')
                 if not cmdfunc:
@@ -109,7 +112,7 @@ class ClusterCommandEngine(object):
         end_time = time.time()
 
         if self._commands:
-            logger.debug('... loaded %s commands from %s in %.3f sec:' % \
+            logger.debug('loaded %s commands from %s in %.3f sec\n' % \
                             (len(self._commands), commands.__name__, (end_time-start_time))  )
 
         for cmd, (shelp, cmdmod) in self._commands.items():

@@ -21,6 +21,7 @@ import readline
 import logging
 import stat
 import colorama
+import threading
 
 from collections import defaultdict
 from cmd import Cmd
@@ -75,14 +76,13 @@ class Console(Cmd):
         self.commands = {}  # { cmd : (helpstr, module) }
         # startup
         self.cluster = ClusterCommandEngine()
-        self.cluster.load_commands()
  
         self.exit_flag = False
         self.cluster.lineterm.set_refresh_callback(self.redisplay)
 
-        self.cluster.handle_command('loglevel',  self.config.get_userdata().get('loglevel') or 'info')
+        threading.Thread(target=self.cluster.load_commands).start()
         logger.info(self.dustintro)
-    
+
     @property
     def prompt(self):
         if self.cluster.cloud and self.cluster.cloud.region:

@@ -444,6 +444,8 @@ def save_cluster(cluster, obj_yaml, logger):
     print "ARGs", args
     cluster.handle_command("assign", filter_exp + args)
 
+    cluster.config.read_all_clusters()
+
 def get_cfn_connection(logger, cluster, region):
 
     cfn_id = 'cloudformation-connection-%s' % region
