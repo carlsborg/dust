@@ -30,6 +30,7 @@ setup(
     url='https://github.com/carlsborg/dust',
     description = "ssh cluster shell for AWS EC2",
     license = "GPL Affero",
+    install_requires = required_packages,
     packages=['dustcluster','dustcluster/commands'],
     scripts = ['bin/dust'],
     python_requires='>=2.7,<3.0.0',
