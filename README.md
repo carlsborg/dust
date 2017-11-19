@@ -93,6 +93,14 @@ This can be useful for developing, prototyping, and one-off configurations of (u
   refresh
   ```
 
+* view cloudwatch logs 
+  ```
+  logs                            # shows log groups
+  logs /aws/lambda/hello_world    # show log streams in this group
+  logs -t /aws/lambda/hello_world # show the most recent log events in this group
+  logs -N 50 -t  /aws/lambda/xyz  # increase output limit to 50
+  ```
+
 > **Note:** Filter expressions can contain index numbers, node names, or all EC2 instance attributes from show -vv .e.g. image=ami-123145. More on [filter expressions](#more-on-filter-expressions) below.
 
 ##### Parallel ssh operations
