@@ -63,6 +63,9 @@ def atssh(cmdline, cluster, logger):
 
         target_nodes = filter( lambda x: x.login_rule , target_nodes )
 
+        if not target_nodes:
+            return
+
         sshcmd = cmdline[len(target):].strip()
 
         if sshcmd:
