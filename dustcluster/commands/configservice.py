@@ -3,10 +3,21 @@ import datetime
 import boto3
 
 commands = ['rules']
-client = boto3.client('config')
+client_cache = {}
+
+def get_client(cluster):
+    client = client_cache.get(cluster.cloud.region)
+    if not client:
+        creds = cluster.config.get_credentials()
+        client = boto3.client('config', region_name=cluster.cloud.region, 
+                                            aws_access_key_id=creds.get('aws_access_key_id'),
+                                            aws_secret_access_key=creds.get('aws_secret_access_key'))
+    return client
+
 
 def run_rule(rulename, cluster, logger):
 
+    client = get_client(cluster)
     client.start_config_rules_evaluation(ConfigRuleNames=[rulename])
 
     for i in range(12):
@@ -38,7 +49,9 @@ def get_max_date(lastgood, lastfailed):
     return last_invoked
 
 
-def rules_status(rulename, logger):
+def rules_status(rulename, cluster, logger):
+
+    client = get_client(cluster)
 
     if rulename:
         resp = client.describe_config_rule_evaluation_status(ConfigRuleNames=[rulename], 
@@ -79,6 +92,10 @@ def rules(cmdline, cluster, logger):
     '''
 
     args = cmdline.split()
+    if len(args) < 1:
+        print "usage: rules [run | status] rule name"
+        return
+
     cmd = args[0]
     rulename = ""
     if len(args) > 1:
@@ -91,5 +108,5 @@ def rules(cmdline, cluster, logger):
         logger.info("running rule %s" % rulename)
         run_rule(rulename, cluster, logger)
     elif (cmd == "status"):
-        rules_status(rulename, logger)
+        rules_status(rulename, cluster, logger)
 

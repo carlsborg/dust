@@ -97,7 +97,10 @@ class ClusterCommandEngine(object):
 
         # import commands and add them to the commands map
         for cmdmod in cmdmods:
-            newmod = __import__(cmdmod, fromlist=['commands'])
+            try:
+                newmod = __import__(cmdmod, fromlist=['commands'])
+            except Exception as e:
+                logger.error("Error importing command from module [%s] %s" % (cmdmod, e))
 
             #sys.stdout.write("\rloading .. %-20s          " % cmdmod)
             #sys.stdout.flush()
