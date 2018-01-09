@@ -68,7 +68,7 @@ def get_closest_region(cluster, logger):
         return region
 
     creds = cluster.config.get_credentials()
-    region = EC2Config.find_closest_region(logger, creds.get('aws_access_key_id', 'aws_secret_access_key'))
+    region = EC2Config.find_closest_region(logger, creds.get('aws_access_key_id'), creds.get('aws_secret_access_key'))
     user_data['closest_region'] = region
     cluster.config.write_userdata()
 
@@ -175,15 +175,18 @@ def new_cluster(args, cluster, logger):
         spec['cluster']['use_placement_group'] = 'yes'
 
     nodes = []
-
-    for i in range(0,2):
+    def make_node(node_name):
         node = dict()
         node['instance_type'] = nodetype
-        if (i==0):
-            node['nodename'] = "master"
-        else:
-            node['nodename'] = "worker"
-            node['count'] = numnodes-1
+        node['nodename'] = node_name
+        return node
+
+    node = make_node("master")
+    nodes.append(node)
+
+    if (numnodes > 1):
+        node = make_nodes("worker")
+        node['count'] = numnodes-1
         nodes.append(node)
 
     spec['nodes'] = nodes
@@ -193,6 +196,7 @@ def new_cluster(args, cluster, logger):
     logger.info("Edit this file if needed and run %s$cluster create %s%s" % 
                     (colorama.Fore.GREEN, name, colorama.Style.RESET_ALL))
     cluster.config.read_all_clusters()
+    cluster.clusters = cluster.config.get_clusters()
 
 def create_cluster(args, cluster, logger):
     '''
@@ -201,6 +205,7 @@ def create_cluster(args, cluster, logger):
     '''
 
     try:
+        cluster.config.read_all_clusters()
 
         cluster_name = args[1]
         clusters = cluster.config.get_clusters()
@@ -208,7 +213,7 @@ def create_cluster(args, cluster, logger):
         obj_yaml = clusters.get(cluster_name)
 
         if not obj_yaml:
-            logger.error("no such cluster spec in %s" % cluster.config.get_clusters_dir()) 
+            logger.error("no such cluster spec in %s" % cluster.config.get_clusters_dir())
             return
         
         cloud_spec = obj_yaml.get('cloud')
@@ -291,10 +296,14 @@ def create_cluster(args, cluster, logger):
                     default_key, keypath = cluster.get_default_key(target_region)
                 instance.KeyName = default_key
 
-            image_id = node.get('image')
+            image_id = cluster_spec.get('image')
             if image_id:
                 instance.ImageId = image_id
-            else: 
+                login_user = cluster_spec.get('username')
+                if not login_user:
+                    logger.error("Need to specify a login user with a custom AMI")
+                node['username'] = login_user
+            else:
                 default_ami, default_login_user = cluster.cloud.get_dust_ami_for_region(target_region)
                 instance.ImageId = default_ami
                 node['image'] = default_ami
@@ -339,7 +348,7 @@ def create_cluster(args, cluster, logger):
         conn = get_cfn_connection(logger, cluster, target_region)
 
         valid = conn.validate_template(cfn_json)
-        print valid.ValidateTemplateResult
+        #print valid.ValidateTemplateResult
         if valid.capabilities:
             print valid.capabilities, valid.capabilities_reason, valid.description
 
@@ -440,8 +449,9 @@ def save_cluster(cluster, obj_yaml, logger):
     name = cluster_props.get('name')
     filter_exp = "tags=aws:cloudformation:stack-name:%s" % name
 
+    login_user = cluster_props.get('username') or 'ec2-user'
     region = obj_yaml.get('cloud').get('region')
-    args = " ec2-user %s %s h" % (cluster.get_default_key(region)[1] , name)
+    args = " %s %s %s h" % (login_user, cluster.get_default_key(region)[1] , name)
     print "ARGs", args
     cluster.handle_command("assign", filter_exp + args)
 

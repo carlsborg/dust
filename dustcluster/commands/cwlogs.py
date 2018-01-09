@@ -8,9 +8,21 @@ import colorama
 
 commands = ['logs']
 
-# if the arg is known dont search for it
+client_cache = {}
+
+# if the arg matches a known log group/stream dont search for it
 known_log_groups = set()
 known_log_streams = set()
+
+def get_client(cluster):
+    client = client_cache.get(cluster.cloud.region)
+    if not client:
+        creds = cluster.config.get_credentials()
+        client = boto3.client('logs', region_name=cluster.cloud.region, 
+                                            aws_access_key_id=creds.get('aws_access_key_id'),
+                                            aws_secret_access_key=creds.get('aws_secret_access_key'))
+
+    return client
 
 def logs(cmdline, cluster, logger):
     '''
@@ -45,9 +57,9 @@ def logs(cmdline, cluster, logger):
     if len(args) > 1:
         logstream_name = args[1]
 
-    client = boto3.client('logs')
-
     resolved_log_group = ""
+
+    client = get_client(cluster)
 
     print colorama.Fore.GREEN, "limit=%s" % limit, colorama.Style.RESET_ALL
 
@@ -82,6 +94,7 @@ def logs(cmdline, cluster, logger):
     if logstream_name in known_log_streams:
         logger.debug("known log stream")
         resolved_log_stream = logstream_name
+        log_streams = []
     else:
         if logstream_name:
             log_streams = client.describe_log_streams(logGroupName=resolved_log_group, 
@@ -107,10 +120,19 @@ def logs(cmdline, cluster, logger):
         if do_tail:
             resolved_log_stream = log_streams[-1].get('logStreamName')
 
-    if not resolved_log_stream:
-        logger.debug("could not resolve a unique log stream. returning")
+    if do_tail and logstream_name:
+        for log_stream in log_streams:
+                show_log_events(client, resolved_log_group, log_stream.get('logStreamName'), 3)
         return
 
+    if not resolved_log_stream:
+        logger.debug("could not resolve a unique log stream. returning")
+    else:
+        show_log_events(client, resolved_log_group, resolved_log_stream, limit)
+
+
+
+def show_log_events(client, resolved_log_group, resolved_log_stream, limit):
     print colorama.Fore.GREEN, "log events from %s:" % resolved_log_stream, colorama.Style.RESET_ALL
 
     log_events = client.get_log_events(logGroupName = resolved_log_group,
@@ -124,7 +146,7 @@ def logs(cmdline, cluster, logger):
         if msg[0] in ['{', '[']:
             msg = format_as_json(msg)
         print ts, colorama.Fore.CYAN, msg, colorama.Style.RESET_ALL
-
+    
 
 def format_as_json(msg):
     ''' assume invalid json, pretty print dont decode '''
@@ -137,6 +159,8 @@ def format_as_json(msg):
             ret += '    ' * indent
         if c in ['{', '[']:
             indent += 1
+            ret += '\n'
+            ret += '    ' * indent
         if c in ['}', ']']:
             indent -= 1 
     return ret

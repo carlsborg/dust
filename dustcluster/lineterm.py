@@ -327,7 +327,8 @@ class SSHTerm(object):
                 if (not ret):
                     logger.error('ssh session closed.')
                     break
-
+            except socket.error:
+                logger.info("socket closed")
             except:
                 logger.exception('exception in raw shell:')
 

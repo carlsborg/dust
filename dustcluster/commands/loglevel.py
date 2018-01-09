@@ -21,8 +21,6 @@ from dustcluster import util
 # export commands 
 commands  = ['loglevel']
 
-boto.set_stream_logger('boto', logging.DEBUG)
-
 def loglevel(cmdline, cluster, logger):
     '''
     loglevel [info|debug] - turn up/down the logging to debug/info

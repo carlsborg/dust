@@ -179,7 +179,12 @@ class DustConfig(object):
         if not os.path.exists(self.clusters_dir):
             os.makedirs(self.clusters_dir)
 
+        str_comment = "#This picks up the latest Amazon Linux AMI with user ec2-user.\n" + \
+                      "#For a custom AMI, add props under cluster: \n" + \
+                      "#   image: amixyz\n" + \
+                      "#   username: login user\n\n"
         with open(template_file, 'w') as yaml_file:
+            yaml_file.write(str_comment)
             yaml_file.write(str_yaml)
 
         return template_file

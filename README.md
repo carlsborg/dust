@@ -11,14 +11,8 @@ Status:
 
 [![Build Status](https://travis-ci.org/carlsborg/dust.svg?branch=master)](https://travis-ci.org/carlsborg/dust) [![PyPI version](https://badge.fury.io/py/dustcluster.svg)](https://badge.fury.io/py/dustcluster)
 
+
 **Quickstart:**
-
-on a python2.7 default system:
-bash$ sudo pip install dustcluster
-
-on a python 3 default system:
-bash$ sudo pip2.7 install dustcluster
-
 
 bash$ dust
 
@@ -28,6 +22,7 @@ bash$ dust
 
 * [Table Of Contents](#table-of-contents)
 * [Rationale](#rationale)
+* [Install](#install)
 * [Summary of Features](#summary-of-features)
     * [As an EC2 web console replacement](#as-an-ec2-web-console-replacement)
     * [Parallel ssh operations](#parallel-ssh-operations)
@@ -44,6 +39,42 @@ bash$ dust
 ### Rationale
 
 This can be useful for developing, prototyping, and one-off configurations of (usually ephemeral) EC2 clusters. Such as when developing/testing custom data engineering stacks and distributed systems.
+
+
+### Install
+
+**Install:**
+
+The python cryptography package now pulls in a boatload of deps, so the install is bit cumbersome:
+
+
+**Ubuntu:**
+```
+# pip
+sudo apt-get update
+sudo apt-get install python-pip
+sudo pip install pip --upgrade
+
+# deps
+sudo apt-get install build-essential python-dev libffi-dev libssl-dev
+sudo pip install enum34 cffi bcrypt cryptography
+
+# dust
+sudo pip install dustcluster
+```
+
+**AmazonLinux/CentOS:**
+```
+#deps
+yum install gcc gcc-c++ make openssl-devel python-devel libffi-devel libssl-devel        
+sudo  pip install enum34 cffi bcrypt cryptography
+
+# dust
+sudo pip install dustcluster
+```
+
+On a python 3 default system, use sudo pip2.7 instead of pip above.
+
 
 ### Summary of Features
 
