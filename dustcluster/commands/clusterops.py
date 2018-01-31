@@ -185,7 +185,7 @@ def new_cluster(args, cluster, logger):
     nodes.append(node)
 
     if (numnodes > 1):
-        node = make_nodes("worker")
+        node = make_node("worker")
         node['count'] = numnodes-1
         nodes.append(node)
 
