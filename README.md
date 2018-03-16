@@ -37,7 +37,10 @@ This can be useful for developing, prototyping, and one-off configurations of (u
 ### Summary of Features
 
 ##### Parallel AWS node operations (As an EC2 web console replacement)
-   
+
+![dustcluster ec2 operations](https://i.imgur.com/IFVGgNq.gif)
+
+
  
 * start/stop/terminate
   ``` 
