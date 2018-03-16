@@ -18,7 +18,7 @@ bash$ dust
 
 [eu-west-1] show
 
-![dustcluster](https://i.imgur.com/A7VIWeR.gif)
+![dustcluster](https://i.imgur.com/zOIloLD.png)
 
 * [Rationale](#rationale)
 * [Summary of Features](#summary-of-features)
@@ -44,7 +44,7 @@ This can be useful for developing, prototyping, and one-off configurations of (u
 
 ##### As an EC2 web console replacement
 
-![dustcluster ec2 operations](https://i.imgur.com/IFVGgNq.gif)
+![dustcluster ec2 operations](https://i.imgur.com/A7VIWeR.gif)
    
  
 * start/stop/terminate
