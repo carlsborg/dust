@@ -18,7 +18,7 @@ bash$ dust
 
 [eu-west-1] show
 
-![dustcluster](https://i.imgur.com/zOIloLD.png)
+![dustcluster](https://i.imgur.com/A7VIWeR.gif)
 
 * [Rationale](#rationale)
 * [Summary of Features](#summary-of-features)
