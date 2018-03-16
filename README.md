@@ -38,7 +38,7 @@ This can be useful for developing, prototyping, and one-off configurations of (u
 
 ##### Parallel AWS node operations (As an EC2 web console replacement)
 
-![dustcluster ec2 operations](https://i.imgur.com/IFVGgNq.gif)
+![dustcluster ec2 operations](https://i.imgur.com/A7VIWeR.gif)
 
 
  
