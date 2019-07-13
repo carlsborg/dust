@@ -14,6 +14,8 @@ Status:
 
 **Quickstart:**
 
+bash$ pip install dustcluster
+
 bash$ dust
 
 [eu-west-1] show
@@ -332,12 +334,9 @@ ii) Write a plugin command that runs a set of ssh commands on a cluster
 TBD
 
 
-### Install
+### Installation Troubleshooting
 
-**Install:**
-
-The python cryptography package now pulls in a boatload of deps, so the install is bit cumbersome:
-
+If pip install fails on the cryptography libs (needed for ssh), then manually install these deps:
 
 **Ubuntu:**
 ```
