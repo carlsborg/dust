@@ -61,7 +61,7 @@ def atssh(cmdline, cluster, logger):
             logger.info("%sSome or all nodes do not have login rules. Type $help assign to fix.%s" %
                             (colorama.Fore.RED, colorama.Style.RESET_ALL))
 
-        target_nodes = filter( lambda x: x.login_rule , target_nodes )
+        target_nodes = list(filter( lambda x: x.login_rule , target_nodes ))
 
         if not target_nodes:
             return
@@ -83,7 +83,7 @@ def atssh(cmdline, cluster, logger):
             if keyfile:
                 cluster.lineterm.shell(keyfile, target_nodes[0])
 
-    except Exception, ex:
+    except Exception as ex:
         logger.exception( ex )
         is_error = True
 
@@ -131,7 +131,7 @@ def _get_key_location(key, cluster, logger):
     if keyfile:
         ret[key] = keyfile
     else:
-        keypath = raw_input("Path to key %s for region %s:" % (key, cluster.cloud.region))
+        keypath = input("Path to key %s for region %s:" % (key, cluster.cloud.region))
         if not keypath or not os.path.exists(keypath):
             logger.error("No key file at that location")
             return ""
@@ -147,8 +147,8 @@ def _get_key_location(key, cluster, logger):
     return ret[key]
 
 def show_help(cluster, logger):
-    ret = raw_input("Logins not setup for some or all selected nodes. Show help?[y] :")
+    ret = input("Logins not setup for some or all selected nodes. Show help?[y] :")
     if not ret or ret.strip().lower() == 'y':
         docstr, _ = cluster.get_commands().get('assign')
-        print colorama.Fore.GREEN, docstr, colorama.Style.RESET_ALL
+        print(colorama.Fore.GREEN, docstr, colorama.Style.RESET_ALL)
 

@@ -53,7 +53,7 @@ def use(cmdline, cluster, logger):
         else:
             use_region(args, cluster, logger)
 
-    except Exception, e:
+    except Exception as e:
         logger.exception(e)
         logger.error("Error using cluster or region : [%s]" % args[0])
         
@@ -119,18 +119,18 @@ def assign(cmdline, cluster, logger):
         logger.info("%sLogin rule [%s] matched with %s nodes%s." % 
                     (colorama.Fore.GREEN, filter_exp, len(target_nodes), colorama.Style.RESET_ALL))
 
-        login_user = raw_input("login-user: ")
-        keyfile    = raw_input("keyfile: ")
+        login_user = input("login-user: ")
+        keyfile    = input("keyfile: ")
 
         while not os.path.exists(keyfile):
             logger.info("cannot read keyfile/does not exist")   
-            keyfile    = raw_input("keyfile: ")
+            keyfile    = input("keyfile: ")
 
-        member_of  = raw_input("member-of: ")
+        member_of  = input("member-of: ")
 
         ret = ""
         while ret not in ['h','l','c']:
-            ret = raw_input("Write this rule with [h]ighest or [l]owest precedence or [c]ancel: ").lower().strip()
+            ret = input("Write this rule with [h]ighest or [l]owest precedence or [c]ancel: ").lower().strip()
         if ret == "c":
             return
         precedence = ret

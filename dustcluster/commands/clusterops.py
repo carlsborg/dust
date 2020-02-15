@@ -152,7 +152,7 @@ def configure_vpc(cfn_template, cluster_name):
 
 def new_cluster(args, cluster, logger):
 
-    name = raw_input("Name this cluster: ")
+    name = input("Name this cluster: ")
 
     if (os.path.exists(cluster.config.get_clusters_dir() + "%s.cfn" % name)):
         clusters = cluster.config.get_clusters()
@@ -160,12 +160,12 @@ def new_cluster(args, cluster, logger):
                                     (name, clusters.get(name).get('cloud').get('region')))
         return
 
-    numnodes = int(raw_input("Number of nodes: "))
-    nodetype = raw_input("Node type [m4.large]: ") or "m4.large"
+    numnodes = int(input("Number of nodes: "))
+    nodetype = input("Node type [m4.large]: ") or "m4.large"
 
     use_placement_group = 'n'
     if "nano" not in nodetype and "small" not in nodetype and "micro" not in nodetype: 
-        use_placement_group = raw_input("use placement group?: [y]") or 'y'
+        use_placement_group = input("use placement group?: [y]") or 'y'
 
     spec = {}
     spec['cloud']   = { 'provider' : 'ec2', 'region': cluster.cloud.region }
@@ -350,16 +350,16 @@ def create_cluster(args, cluster, logger):
         valid = conn.validate_template(cfn_json)
         #print valid.ValidateTemplateResult
         if valid.capabilities:
-            print valid.capabilities, valid.capabilities_reason, valid.description
+            print(valid.capabilities, valid.capabilities_reason, valid.description)
 
         try:
             if not have_nano: # boto dumps error with nano
                 cost_url = conn.estimate_template_cost(cfn_json)
                 logger.info("Estimated running cost of this cluster at:  %s" % cost_url)
-        except Exception, ex:
+        except Exception as ex:
             logger.info("Could not estimate template costs.")
 
-        ret = raw_input("Create stack [y]:") or "y"
+        ret = input("Create stack [y]:") or "y"
 
         if ret.lower()[0] != "y":
             return
@@ -372,7 +372,7 @@ def create_cluster(args, cluster, logger):
 
         save_cluster(cluster, obj_yaml, logger)
 
-    except Exception, e:
+    except Exception as e:
         logger.exception('Error: %s' % e)
         logger.error('%sCluster create threw. Please check for new instances with refresh.%s' % (colorama.Fore.RED, colorama.Style.RESET_ALL))
         return
@@ -396,7 +396,7 @@ def delete_cluster(args, cluster, logger):
     
         region = obj_yaml.get('cloud').get('region')
 
-        ret = raw_input("Please confirm: Delete stack[n]? ") or "n"
+        ret = input("Please confirm: Delete stack[n]? ") or "n"
 
         if ret.lower()[0] != "y":
             return
@@ -414,7 +414,7 @@ def delete_cluster(args, cluster, logger):
             cluster.cur_cluster = ""
         logger.info("Deleted cluster")
 
-    except Exception, e:
+    except Exception as e:
         logger.exception('Error: %s' % e)
         return
 
@@ -452,7 +452,7 @@ def save_cluster(cluster, obj_yaml, logger):
     login_user = cluster_props.get('username') or 'ec2-user'
     region = obj_yaml.get('cloud').get('region')
     args = " %s %s %s h" % (login_user, cluster.get_default_key(region)[1] , name)
-    print "ARGs", args
+    print("ARGs", args)
     cluster.handle_command("assign", filter_exp + args)
 
     cluster.config.read_all_clusters()
@@ -494,10 +494,10 @@ def cluster_status(args, cluster, logger):
 
             stacks = conn.describe_stacks()
             for stack in stacks:
-                print stack
+                print(stack)
                 events = stack.describe_events()
                 for event in reversed(events):
-                    print event
+                    print(event)
             return
 
         obj_yaml = cluster.clusters.get(cluster_name)
@@ -518,10 +518,10 @@ def cluster_status(args, cluster, logger):
         endColor       = "\033[0m"
 
         for event in reversed(events):
-            print event.timestamp, event.resource_type, event.logical_resource_id,\
-                event.resource_status, startColorCyan, event.resource_status_reason or "", endColor
+            print(event.timestamp, event.resource_type, event.logical_resource_id,\
+                event.resource_status, startColorCyan, event.resource_status_reason or "", endColor)
 
-    except Exception, e:
+    except Exception as e:
         logger.exception('Error: %s' % e)
         return
 

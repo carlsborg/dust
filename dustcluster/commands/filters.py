@@ -60,5 +60,5 @@ def filters(cmdline, cluster, logger):
     filters - see help on filter expressions
     '''
 
-    print "%s%s%s" % (colorama.Fore.GREEN, help_str, colorama.Style.RESET_ALL)
+    print("%s%s%s" % (colorama.Fore.GREEN, help_str, colorama.Style.RESET_ALL))
 

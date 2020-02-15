@@ -19,12 +19,12 @@ import logging
 
 from dustcluster.console import Console
 
-if sys.version <= '2.6' or sys.version >= '3.0':
-  print 'Dust has only been tested with Python 2.7. Your version is %s. Exiting' % sys.version.split()[0]
-  sys.exit(1)
+if sys.version_info.major < 3:
+    print('Dust only works with Python 3.x Your version is %s.x Exiting.' % sys.version_info.major)
+    sys.exit(1)
 
 if 'posix' not in os.name:
-  print 'Dust has only been tested with on Linux. Exiting'
+  print('Dust has only been tested with on Linux. Exiting')
   sys.exit(1)
 
 def run_console():

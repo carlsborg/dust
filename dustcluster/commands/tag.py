@@ -44,7 +44,7 @@ def tag(cmdline, cluster, logger):
         # refresh from cloud next operation
         cluster.invalidate_cache()
 
-    except Exception, e:
+    except Exception as e:
         logger.exception('Error: %s' % e)
         return
 
@@ -93,7 +93,7 @@ def untag(cmdline, cluster, logger):
         # refresh from cloud next operation
         cluster.invalidate_cache()
 
-    except Exception, e:
+    except Exception as e:
         logger.exception('Error: %s' % e)
         return
 
@@ -155,7 +155,7 @@ def openport(cmdline, cluster, logger):
 
         grp.authorize_ingress(CidrIp=range, FromPort=int(port), ToPort=int(port), IpProtocol='tcp')
 
-    except Exception, e:
+    except Exception as e:
         logger.exception('Error: %s' % e)
         return
 

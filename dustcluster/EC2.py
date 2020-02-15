@@ -147,14 +147,14 @@ class EC2Cloud(object):
             return cached, 'ec2-user'
 
         ami_name = 'amzn-ami-hvm-2017.09.0.20170930-x86_64-gp2'
- 
+
         filters = [
                         { 'Name': 'name' , 'Values' : [ami_name] } 
                 ]
 
         try:
-            images = self.conn().images.filter(ExecutableUsers=['all'], Owners=['137112412989'], Filters=filters)
-        except boto.exception.ClientError, ex:
+            images = list(self.conn().images.filter(ExecutableUsers=['all'], Owners=['137112412989'], Filters=filters))
+        except boto.exception.ClientErro as ex:
             logger.error("Could not find ami %s in region %s" % (region, ami_name))
 
         for image in images:
@@ -457,8 +457,8 @@ class EC2Config(object):
         except socket.timeout:
             return -1
 
-        except Exception, ex:
-            print endpoint, ex
+        except Exception as ex:
+            print("%s" % (endpoint, ex))
             return -1
 
         return int(t2 - t1)
@@ -496,7 +496,7 @@ class EC2Config(object):
                 return None
             
             client.describe_regions()
-        except Exception, e:
+        except Exception as e:
             logger.exception(e)
             return None
 
@@ -517,18 +517,18 @@ class EC2Config(object):
                 acc_key = override_creds.get('aws_secret_access_key')
                 override_creds = None   # for retry
             else:
-                acc_key_id  = raw_input("Enter aws_access_key_id:").strip()
-                acc_key     = raw_input("Enter aws_secret_access_key:").strip()
+                acc_key_id  = input("Enter aws_access_key_id:").strip()
+                acc_key     = input("Enter aws_secret_access_key:").strip()
 
             confirmed = False
             while not confirmed:
-                region      = raw_input("Enter default region [Enter to find closest region]:")
+                region      = input("Enter default region [Enter to find closest region]:")
                 if region.strip():
                     break
                 else:
                     logger.info("Finding nearest AWS region endpoint...")
                     region = EC2Config.find_closest_region(logger, acc_key_id, acc_key)
-                    confirm = raw_input("Accept %s?[y]" % region) or "y"
+                    confirm = input("Accept %s?[y]" % region) or "y"
                     if confirm[0].lower() == "y":
                         user_data['closest_region'] = region
                         break
