@@ -10,11 +10,11 @@ import dustcluster
 
 required_packages = [
     'paramiko>=2.7.1',
-    'pyyaml>=5.3',
+    'pyyaml>=5.1',
     'boto3>=1.12.0',
     'boto>=2.49.0',
     'troposphere>=1.5.0',
-    'colorama>=0.4.3'
+    'colorama>=0.3.5'
     ]
 
 setup(
