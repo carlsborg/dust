@@ -22,7 +22,7 @@ def run_rule(rulename, cluster, logger):
 
     for i in range(12):
         time.sleep(1)
-        print "."
+        print(".")
     print
 
     # get custom lambda name
@@ -93,7 +93,7 @@ def rules(cmdline, cluster, logger):
 
     args = cmdline.split()
     if len(args) < 1:
-        print "usage: rules [run | status] rule name"
+        print ("usage: rules [run | status] rule name")
         return
 
     cmd = args[0]
@@ -103,7 +103,7 @@ def rules(cmdline, cluster, logger):
 
     if (cmd == "run"):
         if not rulename:
-            print "no rulename"
+            print("no rulename")
             return
         logger.info("running rule %s" % rulename)
         run_rule(rulename, cluster, logger)

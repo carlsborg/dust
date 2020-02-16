@@ -44,7 +44,7 @@ def set_loglevel(logger, level):
     logging.getLogger().setLevel(level)
     logger.setLevel(level)
 
-    for mname, mlogger in logging.Logger.manager.loggerDict.iteritems():
+    for mname, mlogger in logging.Logger.manager.loggerDict.items():
         if getattr(mlogger, 'setLevel', None):
             logger.debug('setting loglevel on %s' % mname)
             mlogger.setLevel(level)

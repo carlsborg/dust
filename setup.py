@@ -1,11 +1,6 @@
 #!/usr/bin/env python
 import os,sys
 
-    
-if sys.version <= '2.6' or sys.version >= '3.0':
-    status = 'Dust has only been tested with Python 2.7. Your version is %s. Exiting' % sys.version.split()[0]
-    raise Exception(status) 
-
 if 'posix' not in os.name:
     status = 'Dust has only been tested with on Linux. Exiting'
     raise Exception(status) 

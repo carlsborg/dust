@@ -97,10 +97,14 @@ class ClusterCommandEngine(object):
 
         # import commands and add them to the commands map
         for cmdmod in cmdmods:
+            newmod=None 
             try:
-                newmod = __import__(cmdmod, fromlist=['commands'])
+                newmod = __import__(cmdmod, fromlist=['dustcluster.commands'])
             except Exception as e:
                 logger.error("Error importing command from module [%s] %s" % (cmdmod, e))
+
+            if not newmod:
+                logger.warn("Could not import module %s from dustcluster.commands" % str(cmdmod))
 
             #sys.stdout.write("\rloading .. %-20s          " % cmdmod)
             #sys.stdout.flush()
@@ -133,7 +137,7 @@ class ClusterCommandEngine(object):
                 func = getattr(cmdmod,  cmd)
                 func(arg, self, logger)
                 return True
-        except Exception, ex:
+        except Exception as ex:
             logger.exception(ex)
             return True
 
@@ -218,7 +222,7 @@ class ClusterCommandEngine(object):
         clusters = set([ rule.get('member-of') for rule in login_rules ])
         logger.info("%sConfigured clusters with logins:%s" % (colorama.Fore.GREEN, colorama.Style.RESET_ALL))
         for cluster in clusters:
-            print cluster
+            print(cluster)
 
     def unload_cur_cluster(self):
         self.cur_cluster = ""
@@ -287,7 +291,7 @@ class ClusterCommandEngine(object):
 
             return default_keyname, keyfile
 
-        except Exception, ex:
+        except Exception as ex:
             logger.exception(ex)
             logger.error('Error getting default keys: %s' % ex)
 
@@ -309,9 +313,9 @@ class ClusterCommandEngine(object):
         try:
             header_data, header_fmt = nodes[0].disp_headers()
 
-            print colorama.Fore.GREEN
-            print "   ", " ".join(header_fmt) % tuple(header_data)
-            print colorama.Style.RESET_ALL
+            print(colorama.Fore.GREEN)
+            print("   ", " ".join(header_fmt) % tuple(header_data))
+            print(colorama.Style.RESET_ALL)
 
             prev_cluster_name = "_"
             prev_vpc = "_"
@@ -319,8 +323,8 @@ class ClusterCommandEngine(object):
                 
                 node_vpc = node.get('vpc')
                 if node_vpc and node_vpc != prev_vpc:
-                    print ""
-                    print "%s--%s:%s" % (colorama.Fore.GREEN, node_vpc, colorama.Style.RESET_ALL)
+                    print("")
+                    print("%s--%s:%s" % (colorama.Fore.GREEN, node_vpc, colorama.Style.RESET_ALL))
                     prev_vpc = node_vpc
 
                 if node.cluster != prev_cluster_name:
@@ -331,11 +335,15 @@ class ClusterCommandEngine(object):
                             print( "%s%s" % (colorama.Style.RESET_ALL, node.cluster))
                         prev_cluster_name = node.cluster or cluster_filter
                     else:
-                        print colorama.Style.RESET_ALL
+                        print (colorama.Style.RESET_ALL)
                         print( "unassigned:" )
                         prev_cluster_name = None
 
-                print colorama.Style.NORMAL, colorama.Fore.CYAN, " ", " ".join(header_fmt) % tuple(node.disp_data())
+                print(
+                    colorama.Style.NORMAL,
+                     colorama.Fore.CYAN, 
+                     " ", 
+                     " ".join(header_fmt) % tuple(node.disp_data()))
                 ext_data = []
                 if extended == 1:
                     ext_data = node.extended_data().items()
@@ -344,11 +352,11 @@ class ClusterCommandEngine(object):
 
                 if ext_data:
                     for (k,v) in sorted(ext_data, key=lambda x:x[0]):
-                        print colorama.Style.RESET_ALL, colorama.Style.DIM, header_fmt[1] % "", k, ":", v
-                    print colorama.Style.RESET_ALL
+                        print(colorama.Style.RESET_ALL, colorama.Style.DIM, header_fmt[1] % "", k, ":", v)
+                    print(colorama.Style.RESET_ALL)
 
         finally:
-            print colorama.Style.RESET_ALL
+            print(colorama.Style.RESET_ALL)
 
 
     def _filter_tags(self, tags, fkey, fval):
@@ -472,7 +480,7 @@ class ClusterCommandEngine(object):
             self.nodecache[self.cloud.region] = nodes
 
         self._match_nodes_to_login_rules(nodes)
-        ret_nodes = sorted(nodes, key =lambda x: (x.cluster, x.get('vpc')))
+        ret_nodes = sorted(nodes, key =lambda x: (x.cluster or '', x.get('vpc') or ''))
         for i in range( len(ret_nodes) ):
             ret_nodes[i].index = str(i + 1)
         return ret_nodes
@@ -499,7 +507,7 @@ class ClusterCommandEngine(object):
 
         # working set
         if self.cur_cluster:
-            cluster_nodes = filter(lambda x: (x.login_rule.get('member-of') == self.cur_cluster), cluster_nodes)
+            cluster_nodes = list(filter(lambda x: (x.login_rule.get('member-of') == self.cur_cluster), cluster_nodes))
 
         if not cluster_nodes:
             return []
@@ -526,7 +534,7 @@ class ClusterCommandEngine(object):
                     filterkey = 'index'
 
             if filterkey and filterval:
-                target_nodes  = self._filter(cluster_nodes, filterkey, filterval)
+                target_nodes  = list(self._filter(cluster_nodes, filterkey, filterval))
                 filtered_nodes.update(target_nodes)
 
         if search and not filtered_nodes:

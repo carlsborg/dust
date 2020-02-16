@@ -95,7 +95,7 @@ class ReceiveDemux(object):
         try:
 
             wrote_output = False
-            for chan, sshterm in  self.chans.iteritems():
+            for chan, sshterm in  self.chans.items():
 
                 if not sshterm.recvbuf:
                     continue
@@ -277,7 +277,7 @@ class SSHTerm(object):
         self.echo = True
 
     def raw_shell_other(self):
-        print "raw mode shell not suppported on this system yet."
+        print("raw mode shell not suppported on this system yet.")
         return
 
     def raw_shell(self):
@@ -435,7 +435,7 @@ class LineTerm(object):
                 if not term.echo:
                     term.enable_echo()
                 term.raw_shell()
-        except Exception, e:
+        except Exception as e:
             logger.error('Dust: Error: %s' % e)
             raise
         finally:
@@ -447,7 +447,7 @@ class LineTerm(object):
         logger.info(\
          '*** Entering raw shell, press ctrl-c thrice to return to cluster shell. Press Enter to continue.***')
 
-        raw_input()
+        input()
 
         self.command(keyfile, node, cmd=None)
 
@@ -474,7 +474,7 @@ class LineTerm(object):
                 ret.filename = os.path.basename(destfile)
             
             logger.info('uploaded to %s : %s' % (node.name, ret))
-        except Exception, e:
+        except Exception as e:
             logger.error(e)
 
 
@@ -503,7 +503,7 @@ class LineTerm(object):
             sftp.get(remotefile, localfile)
 
             logger.info('downloaded from %s : %s' % (node.name, localfile))
-        except Exception, e:
+        except Exception as e:
             logger.error(e)
 
     def shutdown(self):

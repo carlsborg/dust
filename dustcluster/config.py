@@ -1,8 +1,8 @@
 
 import os
 import colorama
-import ConfigParser
-from EC2 import EC2Config
+import configparser
+from dustcluster.EC2 import EC2Config
 import stat
 import yaml
 import glob
@@ -53,7 +53,7 @@ class DustConfig(object):
 
             aws_creds = {}
             if os.path.exists(self.aws_credentials_file):
-                confirm = raw_input("Found default awscli credentials in [%s]. Use these? [Y]:" % self.aws_credentials_file) or "y"
+                confirm = input("Found default awscli credentials in [%s]. Use these? [Y]:" % self.aws_credentials_file) or "y"
                 if confirm[0].lower() == "y":
                     aws_creds = self.read_credentials(self.aws_credentials_file)
 
@@ -107,7 +107,7 @@ class DustConfig(object):
     def read_login_rules(self):
         if os.path.exists(self.login_rules_file):
             with open(self.login_rules_file, "r") as fh:
-                rules = yaml.load(fh.read())
+                rules = yaml.load(fh.read(), Loader=yaml.SafeLoader)
                 login_rules = rules
         else:
             login_rules = {}
@@ -122,7 +122,7 @@ class DustConfig(object):
     def read_user_data(self):
         if os.path.exists(self.userdata_file):
             with open(self.userdata_file, 'r') as fh:
-                user_data = yaml.load(fh) or {}
+                user_data = yaml.load(fh, Loader=yaml.SafeLoader) or {}
         else:
             user_data = {}
 
@@ -143,7 +143,7 @@ class DustConfig(object):
     def read_credentials(self, file_path):
         ''' read dustcluster or aws credentials '''
 
-        parser = ConfigParser.ConfigParser()
+        parser = configparser.ConfigParser()
         parser.read(file_path)
 
         config_data = parser.defaults()
@@ -172,7 +172,7 @@ class DustConfig(object):
         template_file = os.path.join(self.clusters_dir, template_file)
 
         if os.path.exists(template_file):
-            yesno = raw_input("%s exists. Overwrite?[y]:" % template_file) or "yes"
+            yesno = input("%s exists. Overwrite?[y]:" % template_file) or "yes"
             if not yesno.lower().startswith("y"):
                 return None
 
@@ -210,7 +210,7 @@ class DustConfig(object):
             
             if os.path.isfile(cluster_file):
                 with open(cluster_file, "r") as fh:
-                    cluster = yaml.load(fh.read())
+                    cluster = yaml.load(fh.read(), Loader=yaml.SafeLoader)
                     cluster_props = cluster.get('cluster')
                     cluster_name = cluster_props.get('name')
                     clusters[cluster_name] = cluster

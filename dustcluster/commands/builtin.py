@@ -70,7 +70,7 @@ def _show(cmdline, cluster, logger, extended=0):
 
         cluster.show(target_nodes, extended=extended)
 
-    except Exception, e:
+    except Exception as e:
         logger.exception('Error: %s' % e)
         return
 
@@ -117,7 +117,7 @@ def start(cmdline, cluster, logger):
 
             if not node.hydrated and not node.key:
                 logger.info("No key name configured for this node in the template. Need a key name to launch a node.")
-                keyname = raw_input("Keyname [Enter to use dustcluster default]:")
+                keyname = input("Keyname [Enter to use dustcluster default]:")
                 if keyname:
                     node.key = keyname
                 else:
@@ -126,7 +126,7 @@ def start(cmdline, cluster, logger):
 
             node.start()
 
-    except Exception, e:
+    except Exception as e:
         logger.exception('Error: %s' % e)
         return
 
@@ -194,9 +194,9 @@ def operation(logger, cluster, op, target_node_str=None, confirm=False):
             cluster.show(target_nodes)
             logger.info( "%sInvoking %s on these nodes%s" % (colorama.Fore.RED, op, colorama.Style.RESET_ALL) )
             confirm_str = "Continue [Y/N]:"
-            s = raw_input(confirm_str) 
+            s = input(confirm_str) 
             while( s.lower() != 'y' and s.lower() != 'n' ):
-                s = raw_input(confirm_str) 
+                s = input(confirm_str) 
 
             if s.lower() == 'n':
                 return
@@ -205,7 +205,7 @@ def operation(logger, cluster, op, target_node_str=None, confirm=False):
             if node.state != "terminated":
                 getattr(node, op)()
 
-    except Exception, e:
+    except Exception as e:
         logger.exception('Error: %s' % e)
         return
 
