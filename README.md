@@ -6,8 +6,7 @@ DustCluster v0.2.0 is an AWS command line interface in an REPL shell with cluste
 
 Status:
 * Linux and OSX only
-* Alpha/work in progress
-* Python 2.7
+* Python 3.x
 
 [![Build Status](https://travis-ci.org/carlsborg/dust.svg?branch=master)](https://travis-ci.org/carlsborg/dust) [![PyPI version](https://badge.fury.io/py/dustcluster.svg)](https://badge.fury.io/py/dustcluster)
 
