@@ -175,9 +175,12 @@ class SessionManager(object):
             term.raw_shell_mode = True
             term.revert_tty()
 
+        todel = []
         for nodeid, nodeterm in self.session_map.items():
             if nodeterm == term:
-                del self.session_map[nodeid]
+                todel.append(nodeid)
+        for nodeid in todel:
+            del self.session_map[nodeid]
 
     def shutdown(self):
         for term in self.session_map.values():
