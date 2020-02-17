@@ -465,9 +465,7 @@ def get_cfn_connection(logger, cluster, region):
 
     if not conn:
         logger.info("Connecting to cloud formation endpoint in %s" % region)
-        conn = boto.cloudformation.connect_to_region(region,
-                                        aws_access_key_id=cluster.cloud.creds_map['aws_access_key_id'], 
-                                        aws_secret_access_key=cluster.cloud.creds_map['aws_secret_access_key'])
+        conn = boto.cloudformation.connect_to_region(region, profile_name=cluster.config.profile_name)
         cluster.command_state.put(cfn_id, conn)
 
     return conn

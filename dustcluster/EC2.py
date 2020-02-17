@@ -143,7 +143,7 @@ class EC2Cloud(object):
         logger.info("Writing new keypair [%s] to [%s] with mode (0600)" % (keyname, keypath))
 
         with open(keypath, 'wb') as fh:
-            fh.write(keymaterial)
+            fh.write(keymaterial.encode())
 
         os.chmod(keypath, stat.S_IRUSR | stat.S_IWUSR)
 
@@ -162,7 +162,7 @@ class EC2Cloud(object):
 
         try:
             images = list(self.conn().images.filter(ExecutableUsers=['all'], Owners=['137112412989'], Filters=filters))
-        except boto.exception.ClientErro as ex:
+        except ClientError as ex:
             logger.error("Could not find ami %s in region %s" % (region, ami_name))
 
         for image in images:
