@@ -50,17 +50,23 @@ class Console(Cmd):
     dustintro = "Dust cluster shell, version %s. Type %s?%s for help." % (
         __version__, colorama.Fore.GREEN, colorama.Style.RESET_ALL)
 
-    def __init__(self):
+    def __init__(self, aws_profile, verbose):
+
+        self.verbose = verbose
 
         util.intro()
 
-        logger.setLevel(logging.DEBUG)
-
+        logger.setLevel(logging.INFO)
         # read/create config
         try:
             self.config = DustConfig()
+            self.config.init(aws_profile)
         except Exception as e:
-            logger.error("Error getting config/credentials. Cannot continue.")
+            errstr = "Error in setup /validating credentials. Cannot continue."
+            if self.verbose:
+                logger.exception(errstr)
+            else:
+                logger.error(errstr)
             raise
 
         # load history
@@ -79,7 +85,6 @@ class Console(Cmd):
         self.commands = {}  # { cmd : (helpstr, module) }
         # startup
         self.cluster = ClusterCommandEngine()
-
         self.exit_flag = False
         self.cluster.lineterm.set_refresh_callback(self.redisplay)
 

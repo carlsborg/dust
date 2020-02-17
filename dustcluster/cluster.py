@@ -211,7 +211,7 @@ class ClusterCommandEngine(object):
         cloud_provider = self.provider_cache.get(key) 
 
         if not cloud_provider:
-            cloud_provider = EC2Cloud(creds_map=self.config.get_credentials(), region=cloudregion)
+            cloud_provider = EC2Cloud(region=cloudregion, profile_name=self.config.get_profile_name())
             cloud_provider.connect()
             self.provider_cache[key] = cloud_provider
 

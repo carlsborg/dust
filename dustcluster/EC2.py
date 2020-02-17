@@ -30,7 +30,7 @@ class EC2Cloud(object):
     provides a connection to EC2 and generates a list of Node objects 
     '''
 
-    def __init__(self, name='', key='', region="", image="", username="", keyfile="", creds_map={}):
+    def __init__(self, name='', key='', region="", image="", username="", keyfile="", profile_name=""):
 
         if not region:
             region = 'eu-west-1'
@@ -43,21 +43,29 @@ class EC2Cloud(object):
         self.name   = name
         self.key    = key
         self.region = region
+        self.profile_name = profile_name
         self.image  = image
         self.username = username
         self.keyfile = keyfile
-        self.creds_map = creds_map
 
         self.ami_ids = {}
 
-    def connect(self):  
+        self.session = None
+
+    def get_session(self):
+        if not self.session:
+            if self.profile_name:
+                self.session = boto3.Session(profile_name=self.profile_name)
+            else:
+                self.session = boto3.Session(region_name=self.region)
+        return self.session
+
+    def connect(self):
 
         if not self.region:
             raise Exception('No region specified. Will not connect.')
 
-        conn = boto3.resource('ec2', region_name = self.region, 
-                              aws_access_key_id=self.creds_map['aws_access_key_id'], 
-                              aws_secret_access_key=self.creds_map['aws_secret_access_key'])
+        conn = self.get_session().resource('ec2', region_name = self.region)
 
         if not conn:
             raise Exception("Could not connect to region [%s]" % self.region)
@@ -441,38 +449,40 @@ class EC2Config(object):
     @staticmethod
     def http_ping(endpoint):
 
-        req = '''GET / HTTP/1.1\nUser-Agent: DustCluster\nHost: %s\nAccept: */*\n\n'''
+        req = '''HEAD / HTTP/1.1\nUser-Agent: DustCluster\nHost: %s\nAccept: */*\n\n'''
 
         try:
             t1 = time.time() * 1000
             sendsock = socket.create_connection((endpoint, 80))
             smsg = req % endpoint
             sendsock.settimeout(2)
-            sendsock.sendall(smsg)
-            rbuf = " "
-            while rbuf[-1] != '\n':
-                rbuf = sendsock.recv(256)
+            sendsock.sendall(smsg.encode('utf-8'))
+            rbuf = [0]
+            count = 0
+            while rbuf and rbuf[-1] != '\n' and count < 5:
+                rbuf = sendsock.recv(1024)
+                count +=1
             sendsock.close()
             t2 = time.time() * 1000
         except socket.timeout:
             return -1
 
         except Exception as ex:
-            print("%s" % (endpoint, ex))
+            print("%s %s" % (endpoint, ex))
             return -1
 
         return int(t2 - t1)
 
     @staticmethod
-    def find_closest_region(logger, aws_access_key_id, aws_secret_access_key):
+    def find_closest_region(logger, profile_name):
 
-        client = boto3.client('ec2', region_name='us-east-1', aws_access_key_id=aws_access_key_id,
-                                                aws_secret_access_key=aws_secret_access_key)
+        client = boto3.Session(profile_name=profile_name).client('ec2', region_name='us-east-1')
 
         regions = client.describe_regions()
 
         connect_times = []
         for regioninfo in regions.get('Regions'):
+            logger.info("probing %s" % regioninfo['RegionName'])
             ms = EC2Config.http_ping(regioninfo.get('Endpoint'))
             sms = "[timeout/erorr]" if ms == -1 else str(ms)
             logger.info("http ping time to %s (%s) : %s ms" % (regioninfo['Endpoint'], regioninfo['RegionName'], sms))
@@ -486,80 +496,61 @@ class EC2Config(object):
         return connect_times[0][0]
 
     @staticmethod
-    def check_credentials(region, aws_access_key_id, aws_secret_access_key, logger):
+    def check_credentials(region, profile_name, logger):
 
         try:
-            client = boto3.client('ec2', region_name=region, aws_access_key_id=aws_access_key_id,
-                                                aws_secret_access_key=aws_secret_access_key)
+            client = boto3.Session(profile_name=profile_name).client('ec2', region_name=region)
 
             if not client:
-                return None
-            
+                raise Exception("could not get connection to region %s" % region)
+ 
             client.describe_regions()
         except Exception as e:
-            logger.exception(e)
-            return None
+            logger.error("%sCould not call ec2.describe_regions. Please check your aws credentials file (you can pass a profile name to dust with --profile)%s" % ( colorama.Fore.RED, colorama.Style.RESET_ALL ))
+            logger.error(e)
+            raise
 
         return client
 
     @staticmethod
-    def setup_credentials(override_creds):
+    def setup_region(profile_name):
 
         user_data = {}
-        credentials   = {}
+        credentials = {}
 
         good_creds = False
 
-        while not good_creds:
-
-            if override_creds:
-                acc_key_id = override_creds.get('aws_access_key_id')
-                acc_key = override_creds.get('aws_secret_access_key')
-                override_creds = None   # for retry
+        confirmed = False
+        while not confirmed:
+            region = input("Enter default region [Enter to find closest region]:")
+            if region.strip():
+                break
             else:
-                acc_key_id  = input("Enter aws_access_key_id:").strip()
-                acc_key     = input("Enter aws_secret_access_key:").strip()
-
-            confirmed = False
-            while not confirmed:
-                region      = input("Enter default region [Enter to find closest region]:")
-                if region.strip():
+                logger.info("Finding nearest AWS region endpoint...")
+                region = EC2Config.find_closest_region(logger, profile_name)
+                confirm = input("Accept %s?[y]" % region) or "y"
+                if confirm[0].lower() == "y":
+                    user_data['closest_region'] = region
                     break
-                else:
-                    logger.info("Finding nearest AWS region endpoint...")
-                    region = EC2Config.find_closest_region(logger, acc_key_id, acc_key)
-                    confirm = input("Accept %s?[y]" % region) or "y"
-                    if confirm[0].lower() == "y":
-                        user_data['closest_region'] = region
-                        break
 
-            # test creds
-            ret = EC2Config.check_credentials(region, acc_key_id, acc_key, logger)
+        # test creds
+        ret = EC2Config.check_credentials(region, profile_name, logger)
 
-            if ret:
-                good_creds = True
-                logger.info("%sCredentials verified.%s" % 
-                                (colorama.Fore.GREEN, colorama.Style.RESET_ALL))
-            else:
-                logger.error("%sCould not connect to region [%s] with these credentials, please try again%s" % 
-                                (colorama.Fore.RED, region, colorama.Style.RESET_ALL))
-
-        credentials["aws_access_key_id"] = acc_key_id
-        credentials["aws_secret_access_key"] = acc_key
+        if ret:
+            good_creds = True
+            logger.info("%sI can call ec2.describe_regions. Credentials verified.%s" % 
+                            (colorama.Fore.GREEN, colorama.Style.RESET_ALL))
+        else:
+            logger.error("%sCould not connect to region [%s], please check your aws credentials file or pass a profile with --profile%s" % 
+                            (colorama.Fore.RED, region, colorama.Style.RESET_ALL))
 
         user_data["region"] = region
         user_data["closest_region"] = region
 
-        return credentials, user_data
+        return user_data
 
     @staticmethod
-    def validate(credentials, user_data):
-
-        required = ["aws_access_key_id", "aws_secret_access_key"]
-        for s in required:
-            if s not in credentials.keys():
-                logger.error("Credentials data [%s] is missing [%s] key" % (str(credentials.keys()), s))
-                raise Exception("Bad config.")
+    def validate(profile_name, user_data):
 
         required = ["region"]
         for s in required:

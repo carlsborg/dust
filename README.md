@@ -13,7 +13,9 @@ Status:
 
 **Quickstart:**
 
-bash$ pip install dustcluster
+Setup your keys in ~/.aws/credentials, as described [here](https://docs.aws.amazon.com/sdk-for-java/v1/developer-guide/setup-credentials.html)
+
+bash$ pip3 install dustcluster
 
 bash$ dust
 
@@ -349,7 +351,7 @@ sudo apt-get install build-essential python-dev libffi-dev libssl-dev
 sudo pip install enum34 cffi bcrypt cryptography
 
 # dust
-sudo pip install dustcluster
+sudo pip3 install dustcluster
 ```
 
 **AmazonLinux/CentOS:**
@@ -359,7 +361,5 @@ yum install gcc gcc-c++ make openssl-devel python-devel libffi-devel libssl-deve
 sudo  pip install enum34 cffi bcrypt cryptography
 
 # dust
-sudo pip install dustcluster
+sudo pip3 install dustcluster
 ```
-
-On a python 3 default system, use sudo pip2.7 instead of pip above.

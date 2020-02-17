@@ -16,6 +16,7 @@
 import os
 import sys
 import logging
+import argparse
 
 from dustcluster.console import Console
 
@@ -29,15 +30,16 @@ if 'posix' not in os.name:
 
 def run_console():
     '''
-    Invoke the command loop. Or execute a single command if passed as command line args.
+    Invoke the command loop.
     '''
-    
-    console = Console()
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--profile", help="AWS credentials profile to use")
+    parser.add_argument("--verbose", help="true for verbose mode")
+    pargs = parser.parse_args()
 
     try:
-        if len(sys.argv) > 1:
-            console.onecmd(' '.join(sys.argv[1:]))
-            return
+        console = Console(pargs.profile, pargs.verbose)
 
         while not console.exit_flag:
             try:
@@ -47,7 +49,11 @@ def run_console():
                 sys.stdout.write('\n\r')
                 continue
     except:
-        logging.exception('\n\nA fatal error ocurred. Please file bugs at github.com/carlsborg/dust\n\n')
+        errstr = '\n\nProgram exited. Rerun with "--verbose true" option for debug info.\n\n'
+        if pargs.verbose:
+            logging.exception(errstr)
+        else:
+            logging.error(errstr)
 
 if __name__ == '__main__':
     run_console()

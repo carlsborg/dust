@@ -71,7 +71,7 @@ def _show(cmdline, cluster, logger, extended=0):
         cluster.show(target_nodes, extended=extended)
 
     except Exception as e:
-        logger.exception('Error: %s' % e)
+        logger.error('Error: %s' % e)
         return
 
 def refresh(cmdline, cluster, logger):

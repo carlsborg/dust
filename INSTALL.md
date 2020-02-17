@@ -1,28 +1,9 @@
 
 ###Install 
 
+$pip3 install dustcluster --user
 
-Tested on: Debian 7, Python 2.7.3
-
-#### 1. Install pip if you dont have it:
-
-> sudo apt-get install python-pip
-
-> sudo pip install -U pip
-
-
-#### 2.  Install dependencies:
-
-> sudo apt-get install python-dev
-
-> sudo pip install boto3
-
-> sudo pip install paramiko
-
-> sudo pip install troposphere
-
-###Configure 
-
+###Configure
 
 ####1. Get EC2 account credentials 
 
@@ -34,20 +15,23 @@ Create Access key -> Show Access key or Download access key
 
 AWS credentials look like this:
 
-> Access Key ID: YOUR_ACCESS_KEY_ID
+> Access Key ID: AKIAIEABCDABCDABCD
 
-> Secret Access Key: YourSecretAccessKey
+> Secret Access Key: P123oiwndoindfpKDDDKANSDFIDd00fdKA8saase
+
+Create a file ~/.aws/credentials:
+
+[default]
+aws_access_key_id = YourAccessKeyID
+aws_secret_access_key = YourSecretAccessKey
 
 
 ###Kick the tires
 
-####1. Get dust
-
-> $git clone https://github.com/carlsborg/dust.git
 
 ####2. Drop into a dust shell
 
-> $./dust
+> dust
 
 > dust$ show 
 

@@ -8,21 +8,22 @@ import yaml
 import glob
 
 from dustcluster.util import setup_logger
-logger = setup_logger( __name__ )
+logger = setup_logger(__name__)
+
 
 class DustConfig(object):
     ''' loads, saves, owns credentials config file and user_data config file '''
 
     _instance = None
-    _inited   = False
+    _inited = False
 
     def __new__(cls):
         if not DustConfig._instance:
-             DustConfig._instance = object.__new__(cls)
+            DustConfig._instance = object.__new__(cls)
         return DustConfig._instance
 
-    user_dir         = os.path.expanduser('~')
-    dust_dir         = os.path.join(user_dir, '.dustcluster')
+    user_dir = os.path.expanduser('~')
+    dust_dir = os.path.join(user_dir, '.dustcluster')
 
     def __init__(self):
 
@@ -31,42 +32,75 @@ class DustConfig(object):
 
         DustConfig._inited = True
 
-        self.credentials = {}
-        self.user_data   = {}
-        self.login_rules = []
-        self.clusters    = {}
+        self.profile_name = None
+        self.session = None
 
-        self.history_file     = os.path.join(self.dust_dir, 'cmd_history')
+        self.credentials = {}
+        self.user_data = {}
+        self.login_rules = []
+        self.clusters = {}
+
+        self.dust_profile_dir = ''
+        self.history_file = os.path.join(self.dust_dir, 'cmd_history')
         self.credentials_file = os.path.join(self.dust_dir, 'credentials')
-        self.userdata_file    = os.path.join(self.dust_dir, 'user_data')
-        self.aws_credentials_file  = os.path.join(self.user_dir, '.aws/credentials')
+        self.userdata_file = os.path.join(self.dust_dir, 'user_data')
+        self.aws_credentials_file = os.path.join(
+            self.user_dir, '.aws/credentials')
         self.login_rules_file = os.path.join(self.dust_dir, 'login_rules.yaml')
         self.default_keys_dir = os.path.join(self.dust_dir, 'keys')
-        self.clusters_dir     = os.path.join(self.dust_dir, 'clusters')
+        self.clusters_dir = os.path.join(self.dust_dir, 'clusters')
 
+    def init(self, profile_name):
+
+        self.profile_name = profile_name
+        if profile_name:
+            profile_dir = profile_name
+        else:
+            profile_dir = 'default'
+    
+        self.dust_profile_dir = os.path.join(self.dust_dir, profile_dir)
+        self.history_file = os.path.join(self.dust_profile_dir, 'cmd_history')
+        self.credentials_file = os.path.join(self.dust_profile_dir, 'credentials')
+        self.userdata_file = os.path.join(self.dust_profile_dir, 'user_data')
+        self.aws_credentials_file = os.path.join(
+            self.user_dir, '.aws/credentials')
+        self.login_rules_file = os.path.join(self.dust_profile_dir, 'login_rules.yaml')
+        self.default_keys_dir = os.path.join(self.dust_profile_dir, 'keys')
+        self.clusters_dir = os.path.join(self.dust_profile_dir, 'clusters')
+
+        # creds in environment is not supported.
+        if not os.path.exists(self.aws_credentials_file):
+            logger.warn("%sCould not find default credentials in [%s]. Please set up creds first.%s" % (
+                colorama.Fore.RED, self.aws_credentials_file, colorama.Style.RESET_ALL))
+            raise Exception("No aws credentials found")
+
+        new_install = False
         if not os.path.exists(self.dust_dir):
             os.makedirs(self.dust_dir)
+            new_install = True
+
+        if profile_name and not os.path.exists(self.userdata_file):
+            yesno = input("New profile [%s]. Create new configs?[y]:" % profile_name) or "yes"
+            if not yesno.lower().startswith("y"):
+                raise Exception("User aborted setup")
+
+        new_profile = False
+        if not os.path.exists(self.userdata_file):
+            new_profile = True
+
+        if not os.path.exists(self.dust_profile_dir):
+            os.makedirs(self.dust_profile_dir)
 
         # first time setup
-        if not os.path.exists(self.credentials_file) or not os.path.exists(self.userdata_file):
-            logger.info("%sWelcome to dustcluster, creating config file:%s"  % (colorama.Fore.GREEN, colorama.Style.RESET_ALL))
+        if new_install or new_profile:
 
-            aws_creds = {}
-            if os.path.exists(self.aws_credentials_file):
-                confirm = input("Found default awscli credentials in [%s]. Use these? [Y]:" % self.aws_credentials_file) or "y"
-                if confirm[0].lower() == "y":
-                    aws_creds = self.read_credentials(self.aws_credentials_file)
+            logger.info("%sWelcome to dustcluster, creating config file:%s" % (
+                colorama.Fore.GREEN, colorama.Style.RESET_ALL))
 
-            ec2creds, ec2data =  EC2Config.setup_credentials(aws_creds)
-            self.credentials.update(ec2creds)
+            ec2data = EC2Config.setup_region(self.profile_name)
             self.user_data.update(ec2data)
-            self.write_credentials()
             self.write_user_data()
         else:
-            # read in credentials and user data
-            logger.debug("Reading credentials from [%s]" % self.credentials_file)
-            self.credentials = self.read_credentials(self.credentials_file)
-
             logger.debug("Reading user data from [%s]" % self.userdata_file)
             self.user_data = self.read_user_data()
 
@@ -79,8 +113,8 @@ class DustConfig(object):
     def get():
         return DustConfig._instance
 
-    def get_credentials(self):
-        return self.credentials
+    def get_profile_name(self):
+        return self.profile_name
 
     def get_default_keys_dir(self):
         return self.default_keys_dir
@@ -112,10 +146,11 @@ class DustConfig(object):
         else:
             login_rules = {}
 
-        self.login_rules =  login_rules.get('login_rules') or []
+        self.login_rules = login_rules.get('login_rules') or []
 
     def write_login_rules(self):
-        str_yaml = yaml.dump({ "login_rules" : self.login_rules}, default_flow_style=False)
+        str_yaml = yaml.dump(
+            {"login_rules": self.login_rules}, default_flow_style=False)
         with open(self.login_rules_file, 'w') as fh:
             fh.write(str_yaml)
 
@@ -140,33 +175,8 @@ class DustConfig(object):
         with open(self.userdata_file, 'w') as yaml_file:
             yaml_file.write(str_yaml)
 
-    def read_credentials(self, file_path):
-        ''' read dustcluster or aws credentials '''
-
-        parser = configparser.ConfigParser()
-        parser.read(file_path)
-
-        config_data = parser.defaults()
-
-        if not config_data:
-            config_data = dict(parser.items("default"))
-
-        return config_data
-
-    def write_credentials(self):
-
-        # write creds
-        logger.info("Writing credentials to [%s] with mode (0600)" % self.credentials_file)
-        parser = ConfigParser.ConfigParser(self.credentials)
-        if not os.path.exists(self.dust_dir):
-            os.makedirs(self.dust_dir)
-
-        with open(self.credentials_file, 'wb') as fh:
-            parser.write(fh) 
-        os.chmod(self.credentials_file, stat.S_IRUSR | stat.S_IWUSR)
-
     def save_cluster_config(self, name, str_yaml):
-        ''' return path if saved ''' 
+        ''' return path if saved '''
 
         template_file = "%s.yaml" % name
         template_file = os.path.join(self.clusters_dir, template_file)
@@ -194,7 +204,7 @@ class DustConfig(object):
         template_file = os.path.join(self.clusters_dir, template_file)
         os.remove(template_file)
 
-        template_file = "%s.%s.cfn" % (region,name)
+        template_file = "%s.%s.cfn" % (region, name)
         template_file = os.path.join(self.clusters_dir, template_file)
         if os.path.exists(template_file):
             os.remove(template_file)
@@ -204,10 +214,11 @@ class DustConfig(object):
     def read_all_clusters(self):
         wildcardpath = os.path.join(self.clusters_dir, "*.yaml")
         cluster_files = glob.glob(wildcardpath)
-        logger.debug("found [%d] clusters in %s" % (len(cluster_files), wildcardpath))
+        logger.debug("found [%d] clusters in %s" %
+                     (len(cluster_files), wildcardpath))
         clusters = {}
         for cluster_file in cluster_files:
-            
+
             if os.path.isfile(cluster_file):
                 with open(cluster_file, "r") as fh:
                     cluster = yaml.load(fh.read(), Loader=yaml.SafeLoader)
@@ -216,4 +227,3 @@ class DustConfig(object):
                     clusters[cluster_name] = cluster
 
         self.clusters = clusters
-

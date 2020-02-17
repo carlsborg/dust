@@ -17,11 +17,7 @@ known_log_streams = set()
 def get_client(cluster):
     client = client_cache.get(cluster.cloud.region)
     if not client:
-        creds = cluster.config.get_credentials()
-        client = boto3.client('logs', region_name=cluster.cloud.region, 
-                                            aws_access_key_id=creds.get('aws_access_key_id'),
-                                            aws_secret_access_key=creds.get('aws_secret_access_key'))
-
+        client = cluster.get_session().client('logs', region_name=cluster.cloud.region)
     return client
 
 def logs(cmdline, cluster, logger):
