@@ -48,12 +48,13 @@ def run_console():
                 sys.stdout.flush()
                 sys.stdout.write('\n\r')
                 continue
-    except:
-        errstr = '\n\nProgram exited. Rerun with "--verbose true" option for debug info.\n\n'
+    except Exception as ex:
+        errstr = '\n\nRerun with "--verbose true" option for debug info.\n\n'
         if pargs.verbose:
-            logging.exception(errstr)
+            logging.exception(ex)
         else:
-            logging.error(errstr)
+            print(ex)
+        print(errstr)
 
 if __name__ == '__main__':
     run_console()

@@ -516,9 +516,6 @@ class EC2Config(object):
     def setup_region(profile_name):
 
         user_data = {}
-        credentials = {}
-
-        good_creds = False
 
         confirmed = False
         while not confirmed:
@@ -535,14 +532,13 @@ class EC2Config(object):
 
         # test creds
         ret = EC2Config.check_credentials(region, profile_name, logger)
-
         if ret:
-            good_creds = True
             logger.info("%sI can call ec2.describe_regions. Credentials verified.%s" % 
                             (colorama.Fore.GREEN, colorama.Style.RESET_ALL))
         else:
             logger.error("%sCould not connect to region [%s], please check your aws credentials file or pass a profile with --profile%s" % 
                             (colorama.Fore.RED, region, colorama.Style.RESET_ALL))
+            raise Exception("AWS Credentials error")
 
         user_data["region"] = region
         user_data["closest_region"] = region

@@ -53,6 +53,7 @@ class Console(Cmd):
     def __init__(self, aws_profile, verbose):
 
         self.verbose = verbose
+        self.cluster = None
 
         util.intro()
 
@@ -62,7 +63,7 @@ class Console(Cmd):
             self.config = DustConfig()
             self.config.init(aws_profile)
         except Exception as e:
-            errstr = "Error in setup /validating credentials. Cannot continue."
+            errstr = "%sError in setup. Cannot continue. Please check AWS credentials.%s" % (colorama.Fore.RED, colorama.Style.RESET_ALL)
             if self.verbose:
                 logger.exception(errstr)
             else:

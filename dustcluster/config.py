@@ -88,9 +88,6 @@ class DustConfig(object):
         if not os.path.exists(self.userdata_file):
             new_profile = True
 
-        if not os.path.exists(self.dust_profile_dir):
-            os.makedirs(self.dust_profile_dir)
-
         # first time setup
         if new_install or new_profile:
 
@@ -98,6 +95,10 @@ class DustConfig(object):
                 colorama.Fore.GREEN, colorama.Style.RESET_ALL))
 
             ec2data = EC2Config.setup_region(self.profile_name)
+
+            if not os.path.exists(self.dust_profile_dir):
+                os.makedirs(self.dust_profile_dir)
+
             self.user_data.update(ec2data)
             self.write_user_data()
         else:
