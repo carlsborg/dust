@@ -17,7 +17,7 @@ known_log_streams = set()
 def get_client(cluster):
     client = client_cache.get(cluster.cloud.region)
     if not client:
-        client = cluster.get_session().client('logs', region_name=cluster.cloud.region)
+        client = cluster.cloud.get_session().client('logs', region_name=cluster.cloud.region)
     return client
 
 def logs(cmdline, cluster, logger):
@@ -76,7 +76,7 @@ def logs(cmdline, cluster, logger):
         log_groups = sorted(log_groups, key= lambda x: x.get('creationTime'))
         for log_group in log_groups:
             lg_name = log_group.get('logGroupName')
-            ts = time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime(long(log_group['creationTime'])/1000.0))
+            ts = time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime(int(log_group['creationTime'])/1000.0))
             print(ts, colorama.Fore.CYAN, lg_name, colorama.Style.RESET_ALL)
             known_log_groups.add(lg_name)
             if len(log_groups) == 1 and lg_name == loggroup_name:
@@ -105,8 +105,8 @@ def logs(cmdline, cluster, logger):
         print ("%-20s %-20s Messsage" % ('Creation', 'Last Event'))
         for log_stream in log_streams:
             ls_name = log_stream.get('logStreamName')
-            ts1 = time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime(long(log_stream['creationTime'])/1000.0))
-            ts2 = time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime(long(log_stream.get('lastEventTimestamp'))/1000.0))
+            ts1 = time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime(int(log_stream['creationTime'])/1000.0))
+            ts2 = time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime(int(log_stream.get('lastEventTimestamp'))/1000.0))
             print(ts1, ts2, colorama.Fore.CYAN, ls_name, colorama.Style.RESET_ALL)
 
             known_log_streams.add(ls_name)
@@ -135,7 +135,7 @@ def show_log_events(client, resolved_log_group, resolved_log_stream, limit):
                                         logStreamName = resolved_log_stream, limit=limit)
 
     for log_event in log_events.get('events'):
-        ts = time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime(long(log_event['timestamp'])/1000.0))
+        ts = time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime(int(log_event['timestamp'])/1000.0))
         msg = log_event['message']
         if msg[-1] == '\n':
             msg = msg[:-1]
