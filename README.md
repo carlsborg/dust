@@ -101,6 +101,11 @@ This can be useful for developing, prototyping, and one-off configurations of (u
   logs -N 50 -t  /aws/lambda/xyz  # increase output limit to 50
   ```
 
+* specify AWS credentials profile to work in
+  ```
+  dust --profile xyz
+  ```
+
 > **Note:** Filter expressions can contain index numbers, node names, or all EC2 instance attributes from show -vv .e.g. image=ami-123145. More on [filter expressions](#more-on-filter-expressions) below.
 
 ##### Parallel ssh operations
